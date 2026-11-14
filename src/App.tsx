@@ -269,18 +269,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="local-promise">
-            <span className="local-promise-icon">
-              <ShieldCheck size={19} strokeWidth={1.5} />
-            </span>
-            <strong>Ler, entender, decidir.</strong>
-            <p>
-              O NEXO observa o sistema.
-              <br />
-              Quem executa é você.
-            </p>
-            <span className="local-promise-line" />
-          </div>
           <button
             className={`nav-item ${page === 'settings' ? 'active' : ''}`}
             onClick={() => navigate('settings')}

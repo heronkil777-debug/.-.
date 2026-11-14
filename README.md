@@ -7,7 +7,7 @@
 ## O que ele faz
 
 - **Monitor do sistema:** CPU total e por núcleo, carga média, memória, swap, cache, disco da partição pessoal, outros pontos de montagem, rede, temperaturas e bateria quando expostas pelo kernel. Processos com busca e ordenação por memória/CPU. Leitura real de `/proc` e `/sys`, sem root.
-- **Assistente pacman:** diagnóstico local de pacotes instalados, atualizações pendentes no banco sincronizado, órfãos, pacotes foreign/AUR e cache; busca em pacotes instalados e detalhes via `pacman -Qi`. Monta comandos de atualização, busca, informação, instalação, remoção, órfãos, atualizações, arquivos e limpeza de cache. **Nunca executa comandos.** Você copia, revisa e executa no seu terminal.
+- **Assistente pacman:** diagnóstico local de pacotes instalados, atualizações pendentes no banco sincronizado, órfãos, pacotes foreign/AUR e cache; busca em pacotes instalados e detalhes via `pacman -Qi`. Monta comandos de atualização, busca, instalação, remoção, órfãos, atualizações, arquivos e limpeza de cache. **Nunca executa comandos.** Você copia, revisa e executa no seu terminal.
 - **Transparência:** página Sobre e instalação, exportação de diagnóstico JSON e atalhos. Não há banco de dados pessoal, notas, histórico de clipboard nem captura automática.
 - **Atalhos:** `Ctrl/⌘+K` para ações, `1` monitor, `2` pacman, `?` ajuda.
 

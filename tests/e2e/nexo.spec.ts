@@ -56,7 +56,9 @@ test('pacman gera comandos seguros, copia e explica indisponibilidade fora do Ar
   await expect(page.locator('.command-output code')).toHaveText(
     '$ sudo pacman -S --needed -- firefox',
   );
-  await expect(page.getByText('Pede senha de administrador no terminal.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ver informações', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Ler, entender, decidir.')).toHaveCount(0);
+  await expect(page.locator('.sudo-note, .command-explanation')).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Nome exato do pacote' }).fill('firefox; id');
   await page.getByRole('button', { name: 'Gerar comando' }).click();
   await expect(page.getByRole('alert')).toContainText('sem opções ou operadores');

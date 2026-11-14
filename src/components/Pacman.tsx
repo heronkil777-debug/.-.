@@ -20,20 +20,11 @@ import { bytes, relativeDate } from '../format';
 import { Badge, Button, EmptyState, Loading, Modal, SectionHeading } from './UI';
 
 type Action =
-  | 'update'
-  | 'search'
-  | 'info'
-  | 'install'
-  | 'remove'
-  | 'orphans'
-  | 'updates'
-  | 'files'
-  | 'clean-cache';
+  'update' | 'search' | 'install' | 'remove' | 'orphans' | 'updates' | 'files' | 'clean-cache';
 const ACTIONS: { id: Action; label: string; icon: typeof Package; needsPackage: boolean }[] = [
   { id: 'update', label: 'Atualizar sistema', icon: RefreshCw, needsPackage: false },
   { id: 'install', label: 'Instalar pacote', icon: Package, needsPackage: true },
   { id: 'search', label: 'Buscar pacote', icon: Search, needsPackage: true },
-  { id: 'info', label: 'Ver informações', icon: Info, needsPackage: true },
   { id: 'remove', label: 'Remover pacote', icon: Trash2, needsPackage: true },
   { id: 'orphans', label: 'Listar órfãos', icon: FileSearch, needsPackage: false },
   { id: 'updates', label: 'Listar atualizações', icon: Download, needsPackage: false },
@@ -131,7 +122,7 @@ export function Pacman({ notify }: { notify: (m: string) => void }) {
       setBusy(false);
     }
   };
-  const choosePackage = (name: string, nextAction: Action = 'info') => {
+  const choosePackage = (name: string, nextAction: Action = 'files') => {
     setPkg(name);
     setAction(nextAction);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -217,7 +208,7 @@ export function Pacman({ notify }: { notify: (m: string) => void }) {
               {insights.updates?.length ? (
                 insights.updates.map((u) => (
                   <div key={u.name}>
-                    <button className="package-name" onClick={() => choosePackage(u.name)}>
+                    <button className="package-name" onClick={() => void openDetails(u.name)}>
                       {u.name}
                     </button>
                     <code>
@@ -334,15 +325,6 @@ export function Pacman({ notify }: { notify: (m: string) => void }) {
                   <span className="terminal-prompt">$ </span>
                   {result.command}
                 </code>
-                <div className="command-explanation">
-                  <Info size={16} />
-                  <p>{result.description}</p>
-                </div>
-                {result.privileged && (
-                  <div className="sudo-note">
-                    <TriangleAlert size={14} /> Pede senha de administrador no terminal.
-                  </div>
-                )}
                 {manualCopy && (
                   <textarea
                     className="manual-copy mono"
@@ -469,8 +451,8 @@ export function Pacman({ notify }: { notify: (m: string) => void }) {
                     <td className="mono">{p.version}</td>
                     <td className="package-description">{p.description || 'Pacote instalado'}</td>
                     <td>
-                      <Button variant="ghost" onClick={() => choosePackage(p.name)}>
-                        Usar <ArrowRight size={13} />
+                      <Button variant="ghost" onClick={() => choosePackage(p.name, 'files')}>
+                        Arquivos <ArrowRight size={13} />
                       </Button>
                     </td>
                   </tr>
