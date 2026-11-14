@@ -23,5 +23,5 @@ PY
 fi
 if [[ -f "$ICON" ]] && grep -q 'NEXO installer icon' "$ICON"; then rm "$ICON"; fi
 if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true; fi
-echo "NEXO removido. Notas e textos foram preservados em $DATA_HOME/nexo."
-echo "Para apagar os dados também, faça um backup e remova manualmente apenas nexo.db e seus arquivos WAL/SHM."
+echo "NEXO removido. Arquivos de versões antigas, se existirem, foram preservados em $DATA_HOME/nexo."
+echo "A versão focada não usa nexo.db. Para apagar dados antigos, faça backup e remova manualmente apenas nexo.db e seus arquivos WAL/SHM."

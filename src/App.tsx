@@ -5,42 +5,33 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
-  Clipboard,
   Command,
+  Info,
   Keyboard,
-  LayoutDashboard,
   Menu,
   Monitor,
-  NotebookPen,
   Package,
   Search,
-  Settings2,
   ShieldCheck,
   Terminal,
   WifiOff,
   X,
 } from 'lucide-react';
 import { api } from './api';
-import type { Capabilities, ClipboardStatus, Clip, Note, Page, Session, SystemInfo } from './types';
+import type { Capabilities, Page, Session, SystemInfo } from './types';
 import { Logo, Button, IconButton, Modal } from './components/UI';
 import { Overview } from './components/Overview';
-import { Notes } from './components/Notes';
-import { ClipboardPage } from './components/Clipboard';
 import { Pacman } from './components/Pacman';
 import { Settings } from './components/Settings';
 
 const NAV: { id: Page; label: string; icon: typeof Activity; key: string }[] = [
-  { id: 'overview', label: 'Visão geral', icon: LayoutDashboard, key: '1' },
-  { id: 'notes', label: 'Notas rápidas', icon: NotebookPen, key: '2' },
-  { id: 'clipboard', label: 'Área de transferência', icon: Clipboard, key: '3' },
-  { id: 'pacman', label: 'Assistente pacman', icon: Terminal, key: '4' },
+  { id: 'overview', label: 'Monitor do sistema', icon: Activity, key: '1' },
+  { id: 'pacman', label: 'Assistente pacman', icon: Terminal, key: '2' },
 ];
 const PAGE_NAMES: Record<Page, string> = {
-  overview: 'Visão geral',
-  notes: 'Notas rápidas',
-  clipboard: 'Área de transferência',
+  overview: 'Monitor do sistema',
   pacman: 'Assistente pacman',
-  settings: 'Preferências',
+  settings: 'Sobre e instalação',
 };
 function initialPage(): Page {
   const value = window.location.hash.slice(1);
@@ -55,13 +46,6 @@ export default function App() {
   const [history, setHistory] = useState<number[]>([]);
   const [networkHistory, setNetworkHistory] = useState<number[]>([]);
   const [uploadHistory, setUploadHistory] = useState<number[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [noteQuery, setNoteQuery] = useState('');
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [clipQuery, setClipQuery] = useState('');
-  const [clipboardStatus, setClipboardStatus] = useState<ClipboardStatus | null>(null);
-  const [editing, setEditing] = useState<Note | 'new' | null>(null);
-  const [packageSeed, setPackageSeed] = useState('');
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState('');
   const [toast, setToast] = useState('');
@@ -73,8 +57,6 @@ export default function App() {
   const [live, setLive] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const systemRef = useRef<SystemInfo | null>(null);
-  const [notesLoaded, setNotesLoaded] = useState(false);
-  const [clipsLoaded, setClipsLoaded] = useState(false);
   const notify = useCallback((message: string) => {
     setToast(message);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -87,24 +69,6 @@ export default function App() {
     setCommandOpen(false);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
-  const newNote = useCallback(() => {
-    navigate('notes');
-    setEditing('new');
-  }, [navigate]);
-  const refreshNotes = useCallback(async () => {
-    const result = await api.notes(noteQuery);
-    setNotes(result.notes);
-    setNotesLoaded(true);
-  }, [noteQuery]);
-  const refreshClips = useCallback(async () => {
-    const result = await api.clips(clipQuery);
-    setClips(result.clips);
-    setClipboardStatus(result.status);
-    setClipsLoaded(true);
-  }, [clipQuery]);
-  const refreshContext = useCallback(async () => {
-    await Promise.all([refreshNotes(), refreshClips()]);
-  }, [refreshNotes, refreshClips]);
   const refreshSystem = useCallback(async () => {
     const info = await api.system();
     const previous = systemRef.current;
@@ -173,33 +137,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [connected, live, refreshSystem]);
   useEffect(() => {
-    if (!connected) return;
-    const timer = setTimeout(
-      () => {
-        void refreshNotes().catch((e) => notify(e.message));
-      },
-      noteQuery ? 200 : 0,
-    );
-    return () => clearTimeout(timer);
-  }, [connected, refreshNotes, noteQuery, notify]);
-  useEffect(() => {
-    if (!connected) return;
-    const timer = setTimeout(
-      () => {
-        void refreshClips().catch((e) => notify(e.message));
-      },
-      clipQuery ? 200 : 0,
-    );
-    return () => clearTimeout(timer);
-  }, [connected, refreshClips, clipQuery, notify]);
-  useEffect(() => {
-    if (!connected || page !== 'clipboard' || !clipboardStatus?.enabled) return;
-    const timer = setInterval(() => {
-      if (!document.hidden) void refreshClips().catch(() => undefined);
-    }, 3500);
-    return () => clearInterval(timer);
-  }, [connected, page, clipboardStatus?.enabled, refreshClips]);
-  useEffect(() => {
     const handler = () => setPage(initialPage());
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
@@ -226,10 +163,6 @@ export default function App() {
         event.altKey
       )
         return;
-      if (event.key.toLowerCase() === 'n') {
-        event.preventDefault();
-        newNote();
-      }
       const nav = NAV.find((item) => item.key === event.key);
       if (nav) {
         event.preventDefault();
@@ -243,14 +176,10 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, newNote]);
+  }, [navigate]);
   useEffect(() => {
     document.title = `${PAGE_NAMES[page]} · NEXO`;
   }, [page]);
-  const openNote = (note: Note) => {
-    navigate('notes');
-    setEditing(note);
-  };
   const commandItems = [
     ...NAV.map((n) => ({
       id: n.id,
@@ -260,17 +189,10 @@ export default function App() {
       action: () => navigate(n.id),
     })),
     {
-      id: 'new',
-      label: 'Criar uma nota',
-      detail: 'Uma ideia nova · N',
-      icon: NotebookPen,
-      action: newNote,
-    },
-    {
       id: 'settings',
-      label: 'Preferências e privacidade',
-      detail: 'Dados, permissões e instalação',
-      icon: Settings2,
+      label: 'Sobre, privacidade e instalação',
+      detail: 'Como o NEXO funciona no seu Arch',
+      icon: Info,
       action: () => navigate('settings'),
     },
     {
@@ -278,10 +200,7 @@ export default function App() {
       label: 'Preparar atualização do sistema',
       detail: 'Assistente pacman · apenas sugestão',
       icon: Package,
-      action: () => {
-        setPackageSeed('');
-        navigate('pacman');
-      },
+      action: () => navigate('pacman'),
     },
   ].filter((item) =>
     `${item.label} ${item.detail}`
@@ -325,12 +244,12 @@ export default function App() {
             <Monitor size={16} />
           </span>
           <div>
-            <strong>{session?.preview ? 'Prévia do NEXO' : 'Meu espaço'}</strong>
+            <strong>{session?.preview ? 'Prévia do NEXO' : 'Meu computador'}</strong>
             <span>{session?.preview ? 'Ambiente de demonstração' : 'Pessoal · local'}</span>
           </div>
           <ShieldCheck size={15} />
         </div>
-        <div className="nav-section-label">ESPAÇO PESSOAL</div>
+        <div className="nav-section-label">DUAS FERRAMENTAS. UM FOCO.</div>
         <nav>
           {NAV.map((item) => (
             <a
@@ -345,11 +264,7 @@ export default function App() {
             >
               <item.icon size={18} strokeWidth={1.7} />
               <span>{item.label}</span>
-              {item.id === 'notes' && notes.length > 0 ? (
-                <span className="nav-count">{notes.length}</span>
-              ) : (
-                <kbd>{item.key}</kbd>
-              )}
+              <kbd>{item.key}</kbd>
             </a>
           ))}
         </nav>
@@ -358,11 +273,11 @@ export default function App() {
             <span className="local-promise-icon">
               <ShieldCheck size={19} strokeWidth={1.5} />
             </span>
-            <strong>100% no seu espaço.</strong>
+            <strong>Ler, entender, decidir.</strong>
             <p>
-              O que é seu fica com você.
+              O NEXO observa o sistema.
               <br />
-              Sem conta. Sem nuvem.
+              Quem executa é você.
             </p>
             <span className="local-promise-line" />
           </div>
@@ -371,8 +286,8 @@ export default function App() {
             onClick={() => navigate('settings')}
             aria-current={page === 'settings' ? 'page' : undefined}
           >
-            <Settings2 size={18} strokeWidth={1.7} />
-            <span>Preferências</span>
+            <Info size={18} strokeWidth={1.7} />
+            <span>Sobre e instalação</span>
             <ChevronRight size={14} />
           </button>
           <button className="nav-item" onClick={() => setShortcutsOpen(true)}>
@@ -383,7 +298,7 @@ export default function App() {
           <div className="sidebar-footer">
             <span className={`status-dot ${!connected ? 'offline' : ''}`} />
             <span>{connected ? 'Serviço local conectado' : 'Serviço desconectado'}</span>
-            <span>v2.0</span>
+            <span>v{session?.version?.split('.')[0] || '3'}.0</span>
           </div>
         </div>
       </aside>
@@ -396,7 +311,7 @@ export default function App() {
               className="mobile-menu-toggle"
               onClick={() => setMobileMenu(!mobileMenu)}
             />
-            <span className="breadcrumb-root">Meu espaço</span>
+            <span className="breadcrumb-root">Meu computador</span>
             <ChevronRight size={13} />
             <span>{PAGE_NAMES[page]}</span>
           </div>
@@ -469,60 +384,16 @@ export default function App() {
               history={history}
               networkHistory={networkHistory}
               uploadHistory={uploadHistory}
-              notes={notes}
-              clips={clips}
               onNavigate={navigate}
-              onNewNote={newNote}
-              onOpenNote={openNote}
               onRefresh={() => void manualRefresh()}
-              onCommand={() => {
-                setPackageSeed('');
-                navigate('pacman');
-              }}
             />
           )}
-          {page === 'notes' &&
-            (notesLoaded ? (
-              <Notes
-                notes={notes}
-                query={noteQuery}
-                onQuery={setNoteQuery}
-                onChange={refreshNotes}
-                onNew={newNote}
-                editing={editing}
-                onEdit={setEditing}
-                notify={notify}
-              />
-            ) : (
-              <div className="page loading-page" role="status">
-                Abrindo suas notas…
-              </div>
-            ))}
-          {page === 'clipboard' &&
-            (clipsLoaded ? (
-              <ClipboardPage
-                clips={clips}
-                status={clipboardStatus}
-                query={clipQuery}
-                onQuery={setClipQuery}
-                onChange={refreshClips}
-                notify={notify}
-              />
-            ) : (
-              <div className="page loading-page" role="status">
-                Abrindo seu histórico…
-              </div>
-            ))}
-          {page === 'pacman' && connected && (
-            <Pacman key={packageSeed} initialPackage={packageSeed} notify={notify} />
-          )}
+          {page === 'pacman' && connected && <Pacman notify={notify} />}
           {page === 'settings' && (
             <Settings
               session={session}
               capabilities={capabilities}
               system={system}
-              status={clipboardStatus}
-              onChange={refreshContext}
               notify={notify}
               onShortcuts={() => setShortcutsOpen(true)}
             />
@@ -530,10 +401,10 @@ export default function App() {
         </main>
         <footer className="main-footer">
           <span>
-            <Logo small /> Feito para o seu ritmo.
+            <Logo small /> Sistema e pacman. Sem ruído.
           </span>
           <span>
-            <ShieldCheck size={12} /> Sem trackers. Sem surpresas com seus dados.
+            <ShieldCheck size={12} /> Sem trackers. Sem execução de comandos.
           </span>
         </footer>
       </div>
@@ -551,7 +422,7 @@ export default function App() {
       {commandOpen && (
         <Modal
           title="Seu próximo passo."
-          subtitle="Navegue ou comece algo novo."
+          subtitle="Monitor, pacman ou informações do app."
           onClose={() => setCommandOpen(false)}
         >
           <div className="command-search search-field">
@@ -567,7 +438,7 @@ export default function App() {
                   ? `command-${commandItems[Math.min(commandIndex, commandItems.length - 1)].id}`
                   : undefined
               }
-              placeholder="Notas, pacman, privacidade…"
+              placeholder="Monitor, pacman, privacidade…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -616,7 +487,7 @@ export default function App() {
               ))
             ) : (
               <p className="command-no-results">
-                Nenhuma ação encontrada. Tente “nota” ou “pacman”.
+                Nenhuma ação encontrada. Tente “monitor” ou “pacman”.
               </p>
             )}
           </div>
@@ -636,18 +507,15 @@ export default function App() {
       )}
       {shortcutsOpen && (
         <Modal
-          title="Menos cliques. Mais fluxo."
+          title="Menos cliques. Mais foco."
           subtitle="Atalhos funcionam fora dos campos de texto."
           onClose={() => setShortcutsOpen(false)}
         >
           <div className="shortcut-list">
             {[
               ['Ctrl / ⌘ + K', 'Buscar ações'],
-              ['N', 'Criar uma nota'],
-              ['1', 'Visão geral'],
-              ['2', 'Notas rápidas'],
-              ['3', 'Área de transferência'],
-              ['4', 'Assistente pacman'],
+              ['1', 'Monitor do sistema'],
+              ['2', 'Assistente pacman'],
               ['?', 'Mostrar estes atalhos'],
               ['Esc', 'Fechar janela'],
             ].map(([key, label]) => (
@@ -659,7 +527,7 @@ export default function App() {
           </div>
           <div className="privacy-note">
             <ShieldCheck size={17} />
-            <p>No editor, o salvamento é automático. Use “Concluir” para fechar com segurança.</p>
+            <p>O NEXO não executa comandos. Copie a sugestão e revise no seu terminal.</p>
           </div>
         </Modal>
       )}

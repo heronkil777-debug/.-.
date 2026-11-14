@@ -1,70 +1,74 @@
+import { useMemo, useState } from 'react';
 import {
   Activity,
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
-  Clipboard,
+  Battery,
   Cpu,
   HardDrive,
   MemoryStick,
   Monitor,
-  NotebookPen,
-  Package,
-  Plus,
   RefreshCw,
-  ShieldCheck,
+  Search,
   Terminal,
+  Thermometer,
   Wifi,
 } from 'lucide-react';
-import type { Clip, Note, Page, SystemInfo } from '../types';
-import { bytes, duration, greeting, relativeDate } from '../format';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  IconButton,
-  Loading,
-  Ring,
-  SectionHeading,
-  Sparkline,
-  TextLink,
-} from './UI';
+import type { Page, SystemInfo } from '../types';
+import { bytes, duration, greeting } from '../format';
+import { Badge, Button, IconButton, Loading, Ring, SectionHeading, Sparkline } from './UI';
 
 interface Props {
   system: SystemInfo | null;
   history: number[];
   networkHistory: number[];
   uploadHistory: number[];
-  notes: Note[];
-  clips: Clip[];
   onNavigate: (page: Page) => void;
-  onNewNote: () => void;
-  onOpenNote: (note: Note) => void;
   onRefresh: () => void;
-  onCommand: () => void;
 }
+const STATES: Record<string, string> = {
+  R: 'Executando',
+  S: 'Em espera',
+  I: 'Ocioso',
+  D: 'I/O',
+  Z: 'Zumbi',
+  T: 'Pausado',
+};
 export function Overview({
   system,
   history,
   networkHistory,
   uploadHistory,
-  notes,
-  clips,
   onNavigate,
-  onNewNote,
-  onOpenNote,
   onRefresh,
-  onCommand,
 }: Props) {
+  const [processQuery, setProcessQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'memory' | 'cpu'>('memory');
+  const [showAll, setShowAll] = useState(false);
+  const processes = useMemo(() => {
+    if (!system) return [];
+    const q = processQuery.trim().toLowerCase();
+    return system.processes
+      .filter(
+        (p) =>
+          !q ||
+          p.name.toLowerCase().includes(q) ||
+          String(p.pid).includes(q) ||
+          p.user.toLowerCase().includes(q),
+      )
+      .sort((a, b) => b[sortBy] - a[sortBy]);
+  }, [system, processQuery, sortBy]);
+  const visibleProcesses = showAll || processQuery ? processes : processes.slice(0, 8);
   return (
     <div className="page overview-page">
       <SectionHeading
-        eyebrow="SEU ESPAÇO, SEM RUÍDO"
+        eyebrow="MONITOR DO SISTEMA"
         title={`${greeting()}.`}
-        description="Um olhar para a máquina. Um lugar para as suas ideias."
+        description="Seu Linux em tempo real. Sem root, sem ruído, sem controle remoto."
         action={
-          <Button variant="secondary" onClick={onNewNote}>
-            <Plus size={16} /> Nova nota <kbd>N</kbd>
+          <Button variant="secondary" onClick={() => onNavigate('pacman')}>
+            <Terminal size={16} /> Assistente pacman
           </Button>
         }
       />
@@ -95,7 +99,7 @@ export function Overview({
               <div className="metric-label">
                 <Cpu size={17} />
                 <span>Processador</span>
-                <span className="metric-live">AO VIVO</span>
+                <span className="metric-live">3 EM 3 S</span>
               </div>
               <div className="metric-main">
                 <div>
@@ -112,7 +116,7 @@ export function Overview({
                 <span title={system.cpu.model}>
                   {system.cpu.model.split(' ').slice(0, 4).join(' ')}
                 </span>
-                <span>agora</span>
+                <span>últimos {history.length} pontos</span>
               </div>
             </article>
             <article className="metric-card memory-card">
@@ -151,7 +155,7 @@ export function Overview({
                     {system.disk.percent.toFixed(0)}
                     <small>%</small>
                   </strong>
-                  <span>{bytes(system.disk.free, 0)} livres para você</span>
+                  <span>{bytes(system.disk.free, 0)} livres na partição pessoal</span>
                 </div>
                 <div className="disk-visual">
                   <HardDrive size={44} strokeWidth={1} />
@@ -161,46 +165,59 @@ export function Overview({
                 <span style={{ width: `${system.disk.percent}%` }} />
               </div>
               <div className="metric-footer">
-                <span>Partição pessoal</span>
+                <span title={system.disk.mount}>Partição pessoal</span>
                 <span>{bytes(system.disk.total, 0)}</span>
               </div>
             </article>
           </div>
-          <div className="overview-middle">
-            <section className="panel recent-notes">
+
+          <div className="monitor-details">
+            <section className="panel core-panel">
               <div className="panel-heading">
                 <h2>
-                  <NotebookPen size={17} /> À mão
+                  <Cpu size={17} /> Núcleos e carga
                 </h2>
-                <TextLink onClick={() => onNavigate('notes')}>Todas as notas</TextLink>
+                <Badge tone="neutral">/proc/stat</Badge>
               </div>
-              {notes.length ? (
-                <div className="recent-note-list">
-                  {notes.slice(0, 3).map((note) => (
-                    <button className="recent-note" key={note.id} onClick={() => onOpenNote(note)}>
-                      <span className={`note-dot color-${note.color}`} />
-                      <span>
-                        <strong>{note.title}</strong>
-                        <span>{note.body.slice(0, 90) || 'Uma ideia esperando para crescer.'}</span>
-                      </span>
-                      <time>{relativeDate(note.updated)}</time>
-                      <ArrowUpRight size={15} />
-                    </button>
+              {system.cpu.perCore.length ? (
+                <div className="core-grid">
+                  {system.cpu.perCore.map((core, i) => (
+                    <div className="core-item" key={core.name}>
+                      <div>
+                        <span>CPU {i}</span>
+                        <strong>{core.percent.toFixed(0)}%</strong>
+                      </div>
+                      <div className="meter-track">
+                        <span style={{ width: `${core.percent}%` }} />
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <EmptyState
-                  icon={NotebookPen}
-                  title="Tire uma ideia da cabeça."
-                  action={
-                    <Button variant="secondary" onClick={onNewNote}>
-                      <Plus size={15} /> Criar primeira nota
-                    </Button>
-                  }
-                >
-                  Comandos, lembretes, aquele trecho de código. Tudo fica aqui, no seu computador.
-                </EmptyState>
+                <p className="muted small">
+                  Este kernel não expôs núcleos individuais em /proc/stat.
+                </p>
               )}
+              <div className="load-row">
+                <span>Carga média</span>
+                {system.cpu.load.length ? (
+                  <strong>
+                    {system.cpu.load.map((v) => v.toFixed(2).replace('.', ',')).join(' · ')}
+                  </strong>
+                ) : (
+                  <strong>Indisponível</strong>
+                )}
+                <small>1 · 5 · 15 min</small>
+              </div>
+              <div className="memory-extra">
+                <span>
+                  Swap:{' '}
+                  {system.memory.swapTotal
+                    ? `${bytes(system.memory.swapUsed)} / ${bytes(system.memory.swapTotal)} (${system.memory.swapPercent.toFixed(0)}%)`
+                    : 'não configurado'}
+                </span>
+                <span>Cache + buffers: {bytes(system.memory.cached + system.memory.buffers)}</span>
+              </div>
             </section>
             <section className="panel network-card">
               <div className="panel-heading">
@@ -233,74 +250,118 @@ export function Overview({
               <div className="network-total">
                 <span>Interfaces</span>
                 <strong>
-                  {system.network.interfaces.map((i) => i.name).join(', ') || 'Nenhuma ativa'}
+                  {system.network.interfaces.map((i) => i.name).join(', ') || 'Nenhuma detectada'}
                 </strong>
               </div>
             </section>
           </div>
-          <div className="overview-bottom">
-            <section className="panel quick-actions">
-              <div className="panel-heading">
-                <h2>
-                  <Activity size={17} /> Menos cliques, mais fluxo
-                </h2>
-              </div>
-              <div className="quick-action-grid">
-                <button onClick={onCommand}>
-                  <span className="quick-icon">
-                    <Terminal size={20} />
-                  </span>
-                  <span>
-                    <strong>Assistente pacman</strong>
-                    <span>O comando certo, sem executar nada.</span>
-                  </span>
-                  <ArrowUpRight size={16} />
-                </button>
-                <button onClick={() => onNavigate('clipboard')}>
-                  <span className="quick-icon blue">
-                    <Clipboard size={20} />
-                  </span>
-                  <span>
-                    <strong>Área de transferência</strong>
-                    <span>
-                      {clips.length
-                        ? `${clips.length} textos guardados localmente.`
-                        : 'Seu histórico, somente quando você permitir.'}
-                    </span>
-                  </span>
-                  <ArrowUpRight size={16} />
-                </button>
-                <button onClick={() => onNavigate('pacman')}>
-                  <span className="quick-icon sand">
-                    <Package size={20} />
-                  </span>
-                  <span>
-                    <strong>Explorar pacotes</strong>
-                    <span>Encontre o que já está instalado.</span>
-                  </span>
-                  <ArrowUpRight size={16} />
-                </button>
-              </div>
-            </section>
-            <section className="privacy-card">
-              <ShieldCheck size={25} strokeWidth={1.4} />
-              <h2>
-                Seu computador.
-                <br />
-                Seus dados. Só isso.
-              </h2>
-              <p>Sem conta, sem nuvem, sem analytics. O NEXO fala apenas com o serviço local.</p>
-              <button className="text-link" onClick={() => onNavigate('settings')}>
-                Ver privacidade <ChevronRightSmall />
-              </button>
-            </section>
-          </div>
+
+          {(system.disks.length > 0 ||
+            system.temperatures.length > 0 ||
+            system.batteries.length > 0) && (
+            <div className="sensor-grid">
+              {system.disks.length > 0 && (
+                <section className="panel sensor-panel">
+                  <div className="panel-heading">
+                    <h2>
+                      <HardDrive size={17} /> Pontos de montagem
+                    </h2>
+                  </div>
+                  <div className="disk-list">
+                    {system.disks.map((disk) => (
+                      <div key={disk.mount}>
+                        <div className="disk-list-label">
+                          <code title={disk.mount}>{disk.mount}</code>
+                          <span>
+                            {disk.fstype} · {bytes(disk.free)} livres
+                          </span>
+                        </div>
+                        <div className="meter-track">
+                          <span style={{ width: `${disk.percent}%` }} />
+                        </div>
+                        <small>
+                          {disk.percent.toFixed(0)}% de {bytes(disk.total, 0)}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+              {system.temperatures.length > 0 && (
+                <section className="panel sensor-panel">
+                  <div className="panel-heading">
+                    <h2>
+                      <Thermometer size={17} /> Temperatura
+                    </h2>
+                  </div>
+                  <div className="sensor-list">
+                    {system.temperatures.map((sensor, i) => (
+                      <div key={`${sensor.label}-${i}`}>
+                        <span>{sensor.label}</span>
+                        <strong>{sensor.celsius.toFixed(1).replace('.', ',')} °C</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="input-help">
+                    Sensores expostos pelo kernel; a disponibilidade varia conforme o hardware.
+                  </p>
+                </section>
+              )}
+              {system.batteries.length > 0 && (
+                <section className="panel sensor-panel">
+                  <div className="panel-heading">
+                    <h2>
+                      <Battery size={17} /> Bateria
+                    </h2>
+                  </div>
+                  <div className="sensor-list">
+                    {system.batteries.map((battery) => (
+                      <div key={battery.name}>
+                        <span>
+                          {battery.name} · {battery.status || 'estado não informado'}
+                        </span>
+                        <strong>{battery.percent}%</strong>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+
           <section className="panel process-panel">
             <div className="panel-heading">
-              <h2>
-                <Cpu size={17} /> Quem está usando memória
-              </h2>
-              <span className="muted small">Leitura de /proc · sem permissões elevadas</span>
+              <div>
+                <h2>
+                  <Activity size={17} /> Processos
+                </h2>
+                <p>Até 80 processos lidos de /proc. O NEXO observa; não encerra processos.</p>
+              </div>
+              <div className="process-sort" role="group" aria-label="Ordenar processos">
+                <button
+                  aria-pressed={sortBy === 'memory'}
+                  className={sortBy === 'memory' ? 'selected' : ''}
+                  onClick={() => setSortBy('memory')}
+                >
+                  Memória
+                </button>
+                <button
+                  aria-pressed={sortBy === 'cpu'}
+                  className={sortBy === 'cpu' ? 'selected' : ''}
+                  onClick={() => setSortBy('cpu')}
+                >
+                  CPU
+                </button>
+              </div>
+            </div>
+            <div className="search-field process-search">
+              <Search size={16} />
+              <input
+                aria-label="Buscar processos"
+                placeholder="Nome, PID ou usuário…"
+                value={processQuery}
+                onChange={(e) => setProcessQuery(e.target.value)}
+              />
             </div>
             <div className="table-scroll">
               <table>
@@ -308,44 +369,53 @@ export function Overview({
                   <tr>
                     <th>Processo</th>
                     <th>PID</th>
+                    <th>Usuário</th>
                     <th>Estado</th>
+                    <th>CPU*</th>
                     <th>Memória residente</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {system.processes.slice(0, 5).map((process) => (
+                  {visibleProcesses.map((process) => (
                     <tr key={process.pid}>
                       <td>
                         <span className="process-dot" />
                         {process.name}
                       </td>
                       <td className="mono">{process.pid}</td>
+                      <td>{process.user || '—'}</td>
                       <td>
-                        <Badge tone="neutral">
-                          {(
-                            {
-                              R: 'Executando',
-                              S: 'Em espera',
-                              I: 'Ocioso',
-                              D: 'I/O',
-                              Z: 'Zumbi',
-                              T: 'Pausado',
-                            } as Record<string, string>
-                          )[process.state] || process.state}
-                        </Badge>
+                        <Badge tone="neutral">{STATES[process.state] || process.state}</Badge>
                       </td>
+                      <td className="mono">{process.cpu.toFixed(1).replace('.', ',')}%</td>
                       <td className="mono">{bytes(process.memory)}</td>
                     </tr>
                   ))}
+                  {!visibleProcesses.length && (
+                    <tr>
+                      <td colSpan={6} className="table-empty">
+                        Nenhum processo corresponde à busca.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
+            </div>
+            <div className="process-footer">
+              <small>
+                * CPU por processo pode passar de 100% em múltiplos núcleos. A primeira leitura não
+                tem intervalo de comparação.
+              </small>
+              {!processQuery && processes.length > 8 && (
+                <Button variant="ghost" onClick={() => setShowAll(!showAll)}>
+                  {showAll ? 'Mostrar menos' : `Ver todos (${processes.length})`}{' '}
+                  <ArrowUpRight size={13} />
+                </Button>
+              )}
             </div>
           </section>
         </>
       )}
     </div>
   );
-}
-function ChevronRightSmall() {
-  return <ArrowUpRight size={14} />;
 }

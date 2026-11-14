@@ -39,7 +39,6 @@ start(
     ...(preview ? ['--preview'] : []),
   ],
   {
-    NEXO_DATA_DIR: process.env.NEXO_DATA_DIR || `${root}.nexo-dev-data`,
     NEXO_BOOTSTRAP_KEY: bootstrapKey,
   },
 );

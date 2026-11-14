@@ -2,47 +2,44 @@ import { useState } from 'react';
 import {
   Check,
   ChevronRight,
-  Database,
   Download,
-  FolderOpen,
   HardDrive,
   Keyboard,
   LockKeyhole,
   Monitor,
   ShieldCheck,
   Terminal,
-  Trash2,
 } from 'lucide-react';
 import { api, downloadJson } from '../api';
-import type { Capabilities, ClipboardStatus, Session, SystemInfo } from '../types';
+import type { Capabilities, Session, SystemInfo } from '../types';
 import { bytes } from '../format';
-import { Badge, Button, Modal, SectionHeading, Toggle } from './UI';
+import { Badge, Button, Modal, SectionHeading } from './UI';
 
 export function Settings({
   session,
   capabilities,
   system,
-  status,
-  onChange,
   notify,
   onShortcuts,
 }: {
   session: Session | null;
   capabilities: Capabilities | null;
   system: SystemInfo | null;
-  status: ClipboardStatus | null;
-  onChange: () => Promise<void>;
   notify: (m: string) => void;
   onShortcuts: () => void;
 }) {
   const [exporting, setExporting] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
   const [about, setAbout] = useState(false);
-  const exportData = async () => {
+  const exportSnapshot = async () => {
     setExporting(true);
     try {
-      downloadJson(await api.export(), `nexo-backup-${new Date().toISOString().slice(0, 10)}.json`);
-      notify('Backup exportado. Guarde o arquivo em um lugar seguro.');
+      downloadJson(
+        await api.snapshotExport(),
+        `nexo-diagnostico-${new Date().toISOString().slice(0, 10)}.json`,
+      );
+      notify(
+        'Diagnóstico exportado. Ele contém hostname, processos e dados de pacotes; revise antes de compartilhar.',
+      );
     } catch (e) {
       notify((e as Error).message);
     } finally {
@@ -54,7 +51,7 @@ export function Settings({
       <SectionHeading
         eyebrow="TRANSPARÊNCIA, POR PADRÃO"
         title="Do seu jeito. No seu Linux."
-        description="Tudo o que o NEXO faz — e tudo o que ele não faz."
+        description="Sistema e pacman. Tudo o que o NEXO faz — e tudo o que ele não faz."
         action={
           <Badge tone="sage">
             <LockKeyhole size={13} /> Local por natureza
@@ -67,9 +64,8 @@ export function Settings({
           <div>
             <strong>Você está explorando uma prévia hospedada.</strong>
             <p>
-              Os sensores mostram a máquina Debian do sandbox, não o seu Arch. Notas desta
-              demonstração ficam no sandbox. Na instalação local, o serviço usa somente 127.0.0.1 e
-              os dados ficam no seu computador.
+              Os sensores mostram a máquina Debian do sandbox, não o seu Arch. Na instalação local,
+              o serviço usa somente 127.0.0.1 e lê os sensores do seu computador.
             </p>
           </div>
         </div>
@@ -83,29 +79,6 @@ export function Settings({
           </div>
           <div className="setting-row">
             <div>
-              <strong>Captura da área de transferência</strong>
-              <p>
-                {status?.available
-                  ? `Detectado: ${status.backend === 'wayland' ? 'Wayland · wl-clipboard' : 'X11 · xclip'}. Somente texto. Padrões comuns de senhas e chaves são ignorados; o filtro não é infalível.`
-                  : 'Não disponível neste ambiente. No Arch, instale wl-clipboard (Wayland) ou xclip (X11). A captura começa desligada a cada inicialização.'}
-              </p>
-            </div>
-            <Toggle
-              checked={!!status?.enabled}
-              disabled={!status?.available}
-              label="Ativar captura da área de transferência"
-              onChange={async () => {
-                try {
-                  await api.setClipboard(!status?.enabled);
-                  await onChange();
-                } catch (e) {
-                  notify((e as Error).message);
-                }
-              }}
-            />
-          </div>
-          <div className="setting-row">
-            <div>
               <strong>Sem conta. Sem telemetria.</strong>
               <p>
                 Nenhuma fonte, imagem ou API externa é carregada pelo aplicativo. O serviço não
@@ -116,21 +89,31 @@ export function Settings({
           </div>
           <div className="setting-row">
             <div>
-              <strong>Dados locais, sem criptografia</strong>
+              <strong>Leitura de sistema, não controle</strong>
               <p>
-                O banco tem permissão de leitura e escrita apenas para seu usuário (0600). Isso não
-                protege contra outros processos desse usuário ou acesso físico. Não use o NEXO como
-                gerenciador de senhas.
+                CPU, memória, disco, rede, sensores e processos são consultados em /proc e /sys. O
+                NEXO não mata processos, não altera configurações e não pede root.
+              </p>
+            </div>
+            <Check className="setting-check" size={19} />
+          </div>
+          <div className="setting-row">
+            <div>
+              <strong>Sem banco de dados pessoal</strong>
+              <p>
+                Esta versão não tem notas nem histórico de clipboard. Não cria banco SQLite, não
+                captura a área de transferência e não grava preferências no servidor. Uma cópia só é
+                gravada quando você exporta o diagnóstico.
               </p>
             </div>
             <LockKeyhole size={18} />
           </div>
           <div className="setting-row">
             <div>
-              <strong>Leitura de sistema, não controle</strong>
+              <strong>Sessão local protegida</strong>
               <p>
-                CPU, memória, disco e processos são consultados em /proc. O NEXO não mata processos,
-                não altera configurações e não pede root.
+                O launcher cria uma chave em arquivo 0600 e um cookie HttpOnly/SameSite=Strict. A
+                API valida Host/Origin. A chave de bootstrap não é incluída no diagnóstico.
               </p>
             </div>
             <Check className="setting-check" size={19} />
@@ -139,42 +122,37 @@ export function Settings({
         <section className="panel settings-panel">
           <div className="panel-heading">
             <h2>
-              <Database size={18} /> Seus dados
+              <Download size={18} /> Diagnóstico e atalhos
             </h2>
           </div>
-          <div className="data-location">
-            <FolderOpen size={23} />
-            <div>
-              <span>Pasta de dados</span>
-              <code>{session?.dataDir || 'Conectando…'}</code>
-            </div>
-          </div>
           <p className="settings-description">
-            Notas e textos ficam em um banco SQLite. Exporte uma cópia legível em JSON sempre que
-            quiser. O arquivo inclui seus textos; guarde-o com cuidado.
+            Exporte um retrato JSON dos sensores e do banco pacman para conferir ou compartilhar com
+            cuidado. Não é um backup de dados pessoais: não há notas nem textos armazenados.
           </p>
-          <Button variant="secondary" onClick={() => void exportData()} disabled={exporting}>
+          <Button variant="secondary" onClick={() => void exportSnapshot()} disabled={exporting}>
             <Download size={16} />
-            {exporting ? 'Exportando…' : 'Exportar todos os dados'}
+            {exporting ? 'Exportando…' : 'Exportar diagnóstico JSON'}
           </Button>
           <div className="settings-divider" />
           <div className="setting-row">
             <div>
-              <strong>Limpar histórico de textos</strong>
-              <p>Apaga textos não fixados. Suas notas não são afetadas.</p>
-            </div>
-            <Button variant="ghost" onClick={() => setConfirmClear(true)}>
-              <Trash2 size={15} /> Limpar
-            </Button>
-          </div>
-          <div className="setting-row">
-            <div>
               <strong>Atalhos de teclado</strong>
-              <p>Navegue e crie sem tirar as mãos do teclado.</p>
+              <p>1 abre o monitor; 2 abre o pacman. Ctrl/⌘+K busca ações.</p>
             </div>
             <Button variant="ghost" onClick={onShortcuts}>
               <Keyboard size={16} /> Ver atalhos
             </Button>
+          </div>
+          <div className="setting-row">
+            <div>
+              <strong>Cópia pelo navegador</strong>
+              <p>
+                “Copiar comando” usa a Clipboard API somente após seu clique. Se o navegador
+                bloquear, o NEXO mostra o texto para seleção manual. Não há ponte nativa de
+                clipboard.
+              </p>
+            </div>
+            <Check className="setting-check" size={19} />
           </div>
         </section>
         <section className="panel settings-panel system-details">
@@ -206,19 +184,13 @@ export function Settings({
               <dd>{capabilities?.pacman ? 'Disponível' : 'Não detectado'}</dd>
             </div>
             <div>
-              <dt>Área de transferência</dt>
-              <dd>
-                {status?.available
-                  ? status.backend === 'wayland'
-                    ? 'Wayland'
-                    : 'X11'
-                  : 'Somente navegador'}
-              </dd>
+              <dt>Versão</dt>
+              <dd>{session?.version || '—'}</dd>
             </div>
           </dl>
           <p className="input-help">
-            A prévia foi validada em Debian. A integração real com pacman e com a área de
-            transferência precisa ser conferida no seu Arch.
+            A prévia roda em Debian. Consultas pacman reais precisam ser conferidas no seu Arch;
+            aqui são testadas com mocks e degradação explícita.
           </p>
         </section>
         <section className="panel settings-panel install-guide">
@@ -228,23 +200,27 @@ export function Settings({
             </h2>
           </div>
           <p className="settings-description">
-            O repositório inclui um instalador de usuário: compila a interface, instala em{' '}
-            <code>~/.local/share/nexo</code> e cria um atalho no menu de aplicativos. Sem serviço
-            root.
+            O instalador de usuário compila a interface, instala em{' '}
+            <code>~/.local/share/nexo/app</code> e cria um atalho no menu. Sem serviço root. Veja o
+            README para o clone completo.
           </p>
           <div className="install-command">
-            <code>./packaging/install.sh</code>
+            <code>
+              cd "$HOME/nexo"
+              <br />
+              ./packaging/install.sh
+            </code>
           </div>
           <ol className="install-steps">
-            <li>Instale Python 3, Node.js e npm pelo pacman.</li>
+            <li>Requisitos: Git, Python 3.10+, Node.js 22+ e npm.</li>
             <li>
-              Na pasta do projeto, execute <code>npm ci</code>.
+              Clone o repositório em <code>~/nexo</code> e entre na pasta.
             </li>
             <li>
               Execute o instalador e procure <strong>NEXO</strong> no menu.
             </li>
             <li>
-              Opcional: <code>wl-clipboard</code> no Wayland ou <code>xclip</code> no X11.
+              Atualize com <code>git pull --ff-only</code> e reinstale.
             </li>
           </ol>
           <button className="text-link" onClick={() => setAbout(true)}>
@@ -252,54 +228,25 @@ export function Settings({
           </button>
         </section>
       </div>
-      {confirmClear && (
-        <Modal
-          title="Apagar textos não fixados?"
-          subtitle="Essa ação não pode ser desfeita. Suas notas e textos fixados serão mantidos."
-          onClose={() => setConfirmClear(false)}
-        >
-          <div className="modal-actions">
-            <Button variant="secondary" onClick={() => setConfirmClear(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="danger"
-              onClick={async () => {
-                try {
-                  await api.clearClips();
-                  await onChange();
-                  setConfirmClear(false);
-                  notify('Histórico limpo.');
-                } catch (e) {
-                  notify((e as Error).message);
-                }
-              }}
-            >
-              Apagar histórico
-            </Button>
-          </div>
-        </Modal>
-      )}
       {about && (
         <Modal
-          title="Uma janela para o seu espaço."
+          title="Uma janela para o seu Linux."
           subtitle="Sem Electron, sem navegador externo obrigatório."
           onClose={() => setAbout(false)}
         >
           <div className="about-content">
             <p>
-              O instalador usa o Chromium/Chrome em modo aplicativo, se disponível, ou o Firefox. O
-              backend Python serve a interface local e a API na mesma porta, acessível apenas por
-              127.0.0.1.
+              O launcher usa Chromium/Chrome em modo aplicativo, se disponível, ou Firefox. O
+              backend Python serve a interface e a API na mesma porta loopback.
             </p>
             <p>
               O atalho inicia o backend quando necessário. Se nenhum navegador for encontrado, o
-              instalador explica como abrir no seu navegador padrão. Nenhuma dependência é instalada
-              silenciosamente.
+              launcher tenta o navegador padrão. Nenhuma dependência é instalada silenciosamente.
             </p>
             <p>
-              Para desinstalar: <code>./packaging/uninstall.sh</code>. Por padrão, seus dados são
-              preservados.
+              Para desinstalar, execute <code>./packaging/uninstall.sh</code> na pasta do projeto. O
+              instalador substitui apenas a pasta marcada do app; dados antigos de versões
+              anteriores não são apagados automaticamente.
             </p>
           </div>
         </Modal>

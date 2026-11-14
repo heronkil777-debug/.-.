@@ -1,28 +1,20 @@
-export type Page = 'overview' | 'notes' | 'clipboard' | 'pacman' | 'settings';
-export type NoteColor = 'sage' | 'sand' | 'blue' | 'rose' | 'plain';
-export interface Note {
-  id: string;
-  title: string;
-  body: string;
-  color: NoteColor;
-  pinned: boolean;
-  created: number;
-  updated: number;
+export type Page = 'overview' | 'pacman' | 'settings';
+
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  memory: number;
+  cpu: number;
+  state: string;
+  user: string;
 }
-export interface Clip {
-  id: string;
-  text: string;
-  source: string;
-  pinned: boolean;
-  created: number;
-}
-export interface ClipboardStatus {
-  available: boolean;
-  backend: 'wayland' | 'x11' | null;
-  enabled: boolean;
-  error: string;
-  textOnly: boolean;
-  sensitiveFilter: boolean;
+export interface DiskInfo {
+  mount: string;
+  fstype: string;
+  total: number;
+  used: number;
+  free: number;
+  percent: number;
 }
 export interface SystemInfo {
   hostname: string;
@@ -31,29 +23,40 @@ export interface SystemInfo {
   kernel: string;
   architecture: string;
   uptimeSeconds: number;
-  cpu: { percent: number; cores: number; model: string; load: number[] };
+  cpu: {
+    percent: number;
+    cores: number;
+    model: string;
+    load: number[];
+    perCore: { name: string; percent: number }[];
+  };
   memory: {
     total: number;
     available: number;
     used: number;
     percent: number;
+    cached: number;
+    buffers: number;
     swapTotal: number;
     swapUsed: number;
+    swapPercent: number;
   };
   disk: { total: number; used: number; free: number; percent: number; mount: string };
+  disks: DiskInfo[];
   network: { interfaces: { name: string; rx: number; tx: number }[]; rx: number; tx: number };
-  processes: { pid: number; name: string; memory: number; state: string }[];
+  temperatures: { label: string; celsius: number }[];
+  batteries: { name: string; percent: number; status: string }[];
+  processes: ProcessInfo[];
   timestamp: number;
 }
 export interface Session {
   app: string;
   version: string;
   preview: boolean;
-  dataDir: string;
+  focus: string;
   tokenReady: boolean;
 }
 export interface Capabilities {
-  clipboard: ClipboardStatus;
   pacman: boolean;
   browser: string | null;
   preview: boolean;
@@ -62,6 +65,31 @@ export interface Package {
   name: string;
   version: string;
   description: string;
+}
+export interface PackageUpdate {
+  name: string;
+  from: string;
+  to: string;
+}
+export interface PacmanInsights {
+  available: boolean;
+  message: string;
+  installed?: number;
+  orphans?: string[];
+  orphanCount?: number;
+  foreignCount?: number;
+  updates?: PackageUpdate[];
+  updateCount?: number;
+  cacheBytes?: number;
+  cacheFiles?: number;
+  lastSync?: number;
+}
+export interface PackageInfo {
+  available: boolean;
+  found: boolean;
+  name?: string;
+  fields?: Record<string, string>;
+  message: string;
 }
 export interface CommandResult {
   command: string;

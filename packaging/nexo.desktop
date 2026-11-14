@@ -2,12 +2,12 @@
 [Desktop Entry]
 Type=Application
 Name=NEXO
-Comment=Sua central pessoal para Linux — local, sem conta
-Comment[pt_BR]=Sua central pessoal para Linux — local, sem conta
+Comment=Monitor do sistema e assistente pacman — local, sem conta
+Comment[pt_BR]=Monitor do sistema e assistente pacman — local, sem conta
 Exec=nexo open
 Icon=nexo
 Terminal=false
 Categories=Utility;
-Keywords=linux;notes;clipboard;pacman;system;
+Keywords=linux;pacman;system;monitor;arch;
 StartupNotify=true
 StartupWMClass=NEXO

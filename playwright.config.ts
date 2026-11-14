@@ -37,8 +37,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command:
-      'NEXO_API_PORT=8766 NEXO_DATA_DIR=.nexo-test-data npm run dev -- --preview --port 5174',
+    command: 'NEXO_API_PORT=8766 npm run dev -- --preview --port 5174',
     url: 'http://127.0.0.1:5174',
     reuseExistingServer: false,
     timeout: 30000,

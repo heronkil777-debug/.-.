@@ -1,9 +1,9 @@
 {
   "name": "nexo-linux",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
-  "description": "NEXO — sua central pessoal para Linux. Monitor, notas, clipboard e pacman, com dados locais.",
+  "description": "NEXO — monitor do sistema e assistente pacman para Arch Linux. Local, sem conta, sem execução de comandos.",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:ui": "vite --host 127.0.0.1",

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# User-only Arch/Linux installer. Never uses sudo and never removes user data.
+# User-only Arch/Linux installer. Never uses sudo and never removes legacy user data.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -23,6 +23,9 @@ node -e 'if (+process.versions.node.split(".")[0] < 22) { console.error("Node.js
 if [[ -e "$APP_DIR" && ! -f "$APP_DIR/.nexo-app" ]]; then
   echo "Recusando sobrescrever pasta estranha: $APP_DIR" >&2
   exit 1
+fi
+if [[ -f "$APP_DIR/.nexo-app" && -x "$APP_DIR/nexo" ]]; then
+  "$APP_DIR/nexo" stop || true
 fi
 cd "$ROOT"
 echo "→ Instalando dependências de build pinned pelo lockfile…"
@@ -52,13 +55,13 @@ cat > "$DESKTOP_DIR/nexo.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=NEXO
-Comment=Sua central pessoal para Linux — local, sem conta
-Comment[pt_BR]=Sua central pessoal para Linux — local, sem conta
+Comment=Monitor do sistema e assistente pacman — local, sem conta
+Comment[pt_BR]=Monitor do sistema e assistente pacman — local, sem conta
 Exec=$ESCAPED_BIN open
 Icon=nexo
 Terminal=false
 Categories=Utility;
-Keywords=linux;notes;clipboard;pacman;system;
+Keywords=linux;pacman;system;monitor;arch;
 StartupNotify=true
 StartupWMClass=NEXO
 EOF
@@ -73,7 +76,5 @@ if ! command -v chromium >/dev/null && ! command -v google-chrome-stable >/dev/n
   echo "• Nenhum navegador dedicado detectado. Será usado o navegador padrão."
   echo "  Opcional no Arch: sudo pacman -S --needed chromium"
 fi
-if ! command -v wl-paste >/dev/null && ! command -v xclip >/dev/null; then
-  echo "• Clipboard do desktop é opcional: wl-clipboard (Wayland) ou xclip (X11)."
-fi
-echo "• Seus dados ficam fora da pasta do app e são preservados em atualizações."
+echo "• Esta versão não cria banco de dados, notas ou histórico de clipboard."
+echo "• Dados antigos de versões anteriores não são apagados automaticamente."

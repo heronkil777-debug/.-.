@@ -28,10 +28,6 @@ def directory(env: str, fallback: Path) -> Path:
     return path
 
 
-def data_dir() -> Path:
-    return Path(os.environ.get("NEXO_DATA_DIR") or Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "nexo").resolve()
-
-
 def runtime_dir() -> Path:
     runtime = os.environ.get("XDG_RUNTIME_DIR")
     if runtime:
@@ -42,7 +38,7 @@ def runtime_dir() -> Path:
 def runtime_file() -> Path:
     base = runtime_dir()
     base.mkdir(parents=True, exist_ok=True, mode=0o700)
-    return base / f"instance-{hashlib.sha256(str(data_dir()).encode()).hexdigest()[:12]}.json"
+    return base / f"instance-{hashlib.sha256(str(ROOT).encode()).hexdigest()[:12]}.json"
 
 
 def read_runtime() -> dict | None:
@@ -85,7 +81,8 @@ def probe(info: dict) -> bool:
     try:
         request = urllib.request.Request(f"http://127.0.0.1:{int(info['port'])}/api/session", headers={"X-NEXO-Key": str(info["key"])})
         with urllib.request.urlopen(request, timeout=1.5) as response:
-            return json.load(response).get("app") == "NEXO"
+            data = json.load(response)
+            return data.get("app") == "NEXO" and data.get("focus") == "system-pacman"
     except (OSError, ValueError, KeyError, urllib.error.URLError):
         return False
 
@@ -106,8 +103,8 @@ def ensure_running() -> dict:
         raise RuntimeError("Interface não compilada. Execute npm ci && npm run build ou ./packaging/install.sh.")
     runtime = runtime_dir()
     port = free_port()
-    info = {"pid": 0, "port": port, "key": secrets.token_urlsafe(32), "dataDir": str(data_dir()), "server": str(SERVER)}
-    env = {**os.environ, "NEXO_DATA_DIR": str(data_dir()), "NEXO_BOOTSTRAP_KEY": info["key"], "PYTHONUNBUFFERED": "1"}
+    info = {"pid": 0, "port": port, "key": secrets.token_urlsafe(32), "server": str(SERVER)}
+    env = {**os.environ, "NEXO_BOOTSTRAP_KEY": info["key"], "PYTHONUNBUFFERED": "1"}
     log = runtime / "server.log"
     fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     try:
@@ -161,12 +158,12 @@ def stop() -> bool:
         runtime_file().unlink()
     except OSError:
         pass
-    print("NEXO encerrado. Seus dados foram preservados.")
+    print("NEXO encerrado.")
     return True
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="NEXO — sua central pessoal para Linux")
+    parser = argparse.ArgumentParser(description="NEXO — monitor do sistema e assistente pacman para Linux")
     parser.add_argument("command", nargs="?", default="open", choices=("open", "start", "status", "stop", "url"))
     args = parser.parse_args()
     try:
@@ -176,7 +173,7 @@ def main() -> int:
         if args.command == "status":
             info = read_runtime()
             running = bool(info and probe(info))
-            print(json.dumps({"running": running, "port": info.get("port") if info else None, "dataDir": str(data_dir())}, ensure_ascii=False))
+            print(json.dumps({"running": running, "port": info.get("port") if info else None, "appDir": str(ROOT)}, ensure_ascii=False))
             return 0 if running else 3
         info = ensure_running()
         if args.command == "open":
@@ -185,7 +182,7 @@ def main() -> int:
             print(url_for(info))
         else:
             print(f"NEXO pronto em http://127.0.0.1:{info['port']}")
-            print(f"Dados: {info['dataDir']}")
+            print(f"App: {ROOT}")
             print("Use ./nexo open para abrir a janela; ./nexo stop para encerrar.")
         return 0
     except (RuntimeError, OSError, ValueError) as exc:

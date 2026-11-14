@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowRight,
   Check,
   Copy,
+  Download,
+  FileSearch,
   Info,
   Package,
   RefreshCw,
@@ -12,67 +14,115 @@ import {
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
-import { api, copyText } from '../api';
-import type { CommandResult, Package as Pkg } from '../types';
-import { Badge, Button, EmptyState, Loading, SectionHeading } from './UI';
+import { api } from '../api';
+import type { CommandResult, Package as Pkg, PackageInfo, PacmanInsights } from '../types';
+import { bytes, relativeDate } from '../format';
+import { Badge, Button, EmptyState, Loading, Modal, SectionHeading } from './UI';
 
-type Action = 'update' | 'search' | 'info' | 'install' | 'remove' | 'orphans';
+type Action =
+  | 'update'
+  | 'search'
+  | 'info'
+  | 'install'
+  | 'remove'
+  | 'orphans'
+  | 'updates'
+  | 'files'
+  | 'clean-cache';
 const ACTIONS: { id: Action; label: string; icon: typeof Package; needsPackage: boolean }[] = [
   { id: 'update', label: 'Atualizar sistema', icon: RefreshCw, needsPackage: false },
   { id: 'install', label: 'Instalar pacote', icon: Package, needsPackage: true },
   { id: 'search', label: 'Buscar pacote', icon: Search, needsPackage: true },
   { id: 'info', label: 'Ver informações', icon: Info, needsPackage: true },
   { id: 'remove', label: 'Remover pacote', icon: Trash2, needsPackage: true },
-  { id: 'orphans', label: 'Listar órfãos', icon: Search, needsPackage: false },
+  { id: 'orphans', label: 'Listar órfãos', icon: FileSearch, needsPackage: false },
+  { id: 'updates', label: 'Listar atualizações', icon: Download, needsPackage: false },
+  { id: 'files', label: 'Arquivos do pacote', icon: FileSearch, needsPackage: true },
+  { id: 'clean-cache', label: 'Limpar cache', icon: Trash2, needsPackage: false },
 ];
-export function Pacman({
-  initialPackage = '',
-  notify,
-}: {
-  initialPackage?: string;
-  notify: (m: string) => void;
-}) {
-  const [action, setAction] = useState<Action>(initialPackage ? 'info' : 'update');
-  const [pkg, setPkg] = useState(initialPackage);
+const FIELD_LABELS: Record<string, string> = {
+  Name: 'Nome',
+  Version: 'Versão',
+  Description: 'Descrição',
+  Architecture: 'Arquitetura',
+  URL: 'Site',
+  Licenses: 'Licenças',
+  'Installed Size': 'Tamanho instalado',
+  'Install Date': 'Data de instalação',
+  'Install Reason': 'Motivo da instalação',
+  'Required By': 'Necessário para',
+  'Depends On': 'Dependências',
+  Packager: 'Empacotador',
+};
+export function Pacman({ notify }: { notify: (m: string) => void }) {
+  const [action, setAction] = useState<Action>('update');
+  const [pkg, setPkg] = useState('');
   const [result, setResult] = useState<CommandResult | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [manualCopy, setManualCopy] = useState(false);
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [available, setAvailable] = useState(false);
   const [message, setMessage] = useState('');
   const [total, setTotal] = useState(0);
+  const [insights, setInsights] = useState<PacmanInsights | null>(null);
+  const [insightsBusy, setInsightsBusy] = useState(false);
+  const [details, setDetails] = useState<PackageInfo | null>(null);
+  const [detailsBusy, setDetailsBusy] = useState('');
+  const [showUpdates, setShowUpdates] = useState(false);
+  const refreshInsights = useCallback(async () => {
+    setInsightsBusy(true);
+    try {
+      setInsights(await api.pacmanInsights());
+    } catch (e) {
+      setInsights({ available: false, message: (e as Error).message });
+    } finally {
+      setInsightsBusy(false);
+    }
+  }, []);
   useEffect(() => {
+    void refreshInsights();
+  }, [refreshInsights]);
+  useEffect(() => {
+    let active = true;
     const timer = setTimeout(
       async () => {
         setLoading(true);
         try {
           const data = await api.packages(query);
+          if (!active) return;
           setPackages(data.packages);
           setAvailable(data.available);
           setMessage(data.message);
           setTotal(data.total);
         } catch (e) {
-          setMessage((e as Error).message);
+          if (active) setMessage((e as Error).message);
         } finally {
-          setLoading(false);
+          if (active) setLoading(false);
         }
       },
       query ? 250 : 0,
     );
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [query]);
   useEffect(() => {
     setResult(null);
     setError('');
+    setManualCopy(false);
+    setCopied(false);
   }, [action, pkg]);
   const selected = ACTIONS.find((a) => a.id === action)!;
   const generate = async () => {
     setBusy(true);
     setError('');
     setCopied(false);
+    setManualCopy(false);
     try {
       setResult(await api.command(action, pkg));
     } catch (e) {
@@ -81,10 +131,36 @@ export function Pacman({
       setBusy(false);
     }
   };
+  const choosePackage = (name: string, nextAction: Action = 'info') => {
+    setPkg(name);
+    setAction(nextAction);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const openDetails = async (name: string) => {
+    setDetailsBusy(name);
+    try {
+      setDetails(await api.pacmanPackage(name));
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setDetailsBusy('');
+    }
+  };
+  const copyCommand = async () => {
+    if (!result) return;
+    const mode = await api.copyText(result.command);
+    if (mode === 'clipboard') {
+      setCopied(true);
+      notify('Comando copiado. Cole no terminal e revise antes de executar.');
+    } else {
+      setManualCopy(true);
+      notify('O navegador bloqueou a cópia. Selecione o comando no campo e copie manualmente.');
+    }
+  };
   return (
     <div className="page pacman-page">
       <SectionHeading
-        eyebrow="SEU TERMINAL, COM UM POUCO DE CLAREZA"
+        eyebrow="ASSISTENTE PACMAN"
         title="Assistente pacman."
         description="Escolha a intenção. Entenda o comando. Você decide quando executar."
         action={
@@ -93,6 +169,100 @@ export function Pacman({
           </Badge>
         }
       />
+
+      {insights?.available && (
+        <section className="pacman-insights" aria-label="Diagnóstico do pacman">
+          <div className="insight-card">
+            <span>Instalados</span>
+            <strong>{insights.installed?.toLocaleString('pt-BR') ?? '—'}</strong>
+            <small>pacman -Q</small>
+          </div>
+          <div className="insight-card">
+            <span>Atualizações*</span>
+            <strong>{insights.updateCount?.toLocaleString('pt-BR') ?? '—'}</strong>
+            <button className="text-link" onClick={() => setShowUpdates(!showUpdates)}>
+              {showUpdates ? 'Ocultar lista' : 'Ver lista'} <ArrowRight size={12} />
+            </button>
+          </div>
+          <div className="insight-card">
+            <span>Órfãos</span>
+            <strong>{insights.orphanCount?.toLocaleString('pt-BR') ?? '—'}</strong>
+            <button className="text-link" onClick={() => choosePackage('', 'orphans')}>
+              Preparar consulta <ArrowRight size={12} />
+            </button>
+          </div>
+          <div className="insight-card">
+            <span>Cache de pacotes</span>
+            <strong>{bytes(insights.cacheBytes || 0)}</strong>
+            <small>{insights.cacheFiles || 0} arquivos · /var/cache/pacman/pkg</small>
+          </div>
+          <div className="insights-footer">
+            <span>
+              * Banco local sincronizado
+              {insights.lastSync ? ` ${relativeDate(insights.lastSync)}` : ''}; não é uma consulta
+              aos repositórios.{' '}
+              {insights.foreignCount != null && `${insights.foreignCount} pacotes foreign/AUR.`}
+            </span>
+            <Button variant="ghost" disabled={insightsBusy} onClick={() => void refreshInsights()}>
+              <RefreshCw size={14} /> {insightsBusy ? 'Consultando…' : 'Atualizar diagnóstico'}
+            </Button>
+          </div>
+          {insights.message && (
+            <p className="inline-error" role="alert">
+              {insights.message}
+            </p>
+          )}
+          {showUpdates && (
+            <div className="update-list">
+              {insights.updates?.length ? (
+                insights.updates.map((u) => (
+                  <div key={u.name}>
+                    <button className="package-name" onClick={() => choosePackage(u.name)}>
+                      {u.name}
+                    </button>
+                    <code>
+                      {u.from} → {u.to}
+                    </code>
+                  </div>
+                ))
+              ) : (
+                <p className="muted small">
+                  Nenhuma atualização listada no banco local. Para sincronizar, prepare o comando de
+                  atualização completa abaixo.
+                </p>
+              )}
+              {insights.updateCount != null && insights.updateCount > 100 && (
+                <small>Exibindo 100 de {insights.updateCount}.</small>
+              )}
+            </div>
+          )}
+          {!!insights.orphans?.length && (
+            <details className="orphan-details">
+              <summary>Ver nomes dos {insights.orphans.length} órfãos</summary>
+              <div className="orphan-list">
+                {insights.orphans.map((name) => (
+                  <button
+                    key={name}
+                    className="package-name"
+                    onClick={() => void openDetails(name)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+              <p className="input-help">
+                Órfão não significa lixo. Confira se ainda precisa do pacote antes de remover.
+              </p>
+            </details>
+          )}
+        </section>
+      )}
+      {insights && !insights.available && insights.message && (
+        <p className="pacman-unavailable">
+          <Info size={16} /> {insights.message} O assistente abaixo continua disponível.
+        </p>
+      )}
+
       <div className="pacman-workspace">
         <section className="panel command-builder">
           <div className="panel-heading">
@@ -129,7 +299,7 @@ export function Pacman({
                 <input
                   id="package-name"
                   className="text-input mono"
-                  placeholder="ex.: firefox, git, wl-clipboard"
+                  placeholder="ex.: firefox, git, linux-lts"
                   maxLength={200}
                   value={pkg}
                   onChange={(e) => setPkg(e.target.value)}
@@ -140,7 +310,7 @@ export function Pacman({
               </div>
             )}
             <Button type="submit" disabled={busy || (selected.needsPackage && !pkg.trim())}>
-              Gerar comando <ArrowRight size={16} />
+              {busy ? 'Preparando…' : 'Gerar comando'} <ArrowRight size={16} />
             </Button>
           </form>
           {error && (
@@ -173,18 +343,17 @@ export function Pacman({
                     <TriangleAlert size={14} /> Pede senha de administrador no terminal.
                   </div>
                 )}
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    try {
-                      await copyText(result.command);
-                      setCopied(true);
-                      notify('Comando copiado. Cole no terminal e revise antes de executar.');
-                    } catch (e) {
-                      notify((e as Error).message);
-                    }
-                  }}
-                >
+                {manualCopy && (
+                  <textarea
+                    className="manual-copy mono"
+                    aria-label="Comando para copiar manualmente"
+                    readOnly
+                    value={result.command}
+                    onFocus={(e) => e.target.select()}
+                    autoFocus
+                  />
+                )}
+                <Button variant="secondary" onClick={() => void copyCommand()}>
                   {copied ? <Check size={16} /> : <Copy size={16} />}{' '}
                   {copied ? 'Comando copiado' : 'Copiar comando'}
                 </Button>
@@ -244,6 +413,7 @@ export function Pacman({
           </div>
         </aside>
       </div>
+
       <section className="panel installed-packages">
         <div className="panel-heading">
           <div>
@@ -292,29 +462,15 @@ export function Pacman({
                 {packages.map((p) => (
                   <tr key={p.name}>
                     <td>
-                      <button
-                        className="package-name"
-                        onClick={() => {
-                          setPkg(p.name);
-                          setAction('info');
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      >
+                      <button className="package-name" onClick={() => void openDetails(p.name)}>
                         {p.name}
                       </button>
                     </td>
                     <td className="mono">{p.version}</td>
                     <td className="package-description">{p.description || 'Pacote instalado'}</td>
                     <td>
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setPkg(p.name);
-                          setAction('info');
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      >
-                        Info <ArrowRight size={13} />
+                      <Button variant="ghost" onClick={() => choosePackage(p.name)}>
+                        Usar <ArrowRight size={13} />
                       </Button>
                     </td>
                   </tr>
@@ -328,6 +484,29 @@ export function Pacman({
           </EmptyState>
         )}
       </section>
+
+      {details && (
+        <Modal
+          title={details.name || 'Detalhes do pacote'}
+          subtitle="Consulta local · pacman -Qi · somente leitura"
+          onClose={() => setDetails(null)}
+          wide
+        >
+          {details.found && details.fields ? (
+            <dl className="package-detail-list">
+              {Object.entries(details.fields).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{FIELD_LABELS[key] || key}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="muted">{details.message}</p>
+          )}
+          {detailsBusy && <Loading label="Consultando…" />}
+        </Modal>
+      )}
     </div>
   );
 }
