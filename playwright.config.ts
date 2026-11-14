@@ -19,7 +19,7 @@ export default defineConfig({
   expect: { timeout: 7000 },
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:5174',
     trace: 'off',
     screenshot: 'only-on-failure',
     launchOptions: {
@@ -37,9 +37,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:5173',
-    reuseExistingServer: true,
+    command:
+      'NEXO_API_PORT=8766 NEXO_DATA_DIR=.nexo-test-data npm run dev -- --preview --port 5174',
+    url: 'http://127.0.0.1:5174',
+    reuseExistingServer: false,
     timeout: 30000,
   },
 });

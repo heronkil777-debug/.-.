@@ -1,117 +1,109 @@
-# ÚLTIMO SINAL
+# NEXO
 
-**O silêncio não significa que você está sozinho.**
+**Seu Linux, mais perto.** Uma central pessoal para Arch Linux: monitor do sistema, notas rápidas, histórico de textos e um assistente de comandos pacman. Sem conta, sem nuvem, sem telemetria.
 
-Uma experiência narrativa de investigação orbital, em português. Você é a última pessoa acordada a bordo da Íris–9. Uma transmissão desconhecida chegou da órbita. Restaure cinco sistemas, recupere seus registros e decida o que fazer com a verdade.
+> O jogo anterior foi removido da árvore atual, como pedido. Ele continua preservado no histórico Git (`eb44d22`).
 
-Não é uma landing page: é um pequeno jogo completo, com cinco mecânicas interativas, uma história em etapas e três desfechos diferentes.
+## O que ele faz
 
-## Jogar
+- **Visão geral:** CPU, memória, swap, disco da partição pessoal, uptime, rede e processos que mais usam memória. Leitura real de `/proc`, sem root.
+- **Notas rápidas:** criar, editar com salvamento automático, buscar, fixar, colorir, excluir e exportar em Markdown. Persistência em SQLite.
+- **Área de transferência:** guardar textos manualmente, copiar, buscar, fixar e limpar. Captura automática **opcional** via `wl-clipboard` (Wayland) ou `xclip` (X11), somente texto, até 20.000 caracteres e 200 itens.
+- **Assistente pacman:** montar comandos de atualização, busca, informação, instalação, remoção e listagem de órfãos. **Nunca executa comandos.** Você copia, revisa e executa no seu terminal.
+- **Preferenças:** exportação JSON, atalhos, limites e explicação honesta das permissões.
+- **Atalhos:** `Ctrl/⌘+K` para ações, `N` para nota, `1–4` para páginas, `?` para ajuda.
 
-Requer **Node.js 22.12+** e npm.
+## Instalar no Arch
+
+Requisitos de build: **Python 3.10+, Node.js 22+, npm**. Em um Arch atualizado:
+
+```bash
+sudo pacman -S --needed python nodejs npm
+```
+
+Dentro da pasta deste projeto:
+
+```bash
+./packaging/install.sh
+```
+
+O instalador:
+
+1. instala as dependências npm do lockfile;
+2. compila a interface;
+3. copia o app para `~/.local/share/nexo/app` (respeita `XDG_DATA_HOME`);
+4. cria `~/.local/bin/nexo` e um ícone **NEXO** no menu de aplicativos.
+
+Não usa sudo, não instala pacotes do sistema silenciosamente e não cria serviço root.
+
+Abra pelo menu ou:
+
+```bash
+~/.local/bin/nexo open
+```
+
+Se `~/.local/bin` estiver no seu `PATH`, basta `nexo open`. O launcher inicia o backend local quando necessário e abre Chromium/Chrome em modo app, Firefox ou o navegador padrão. Nenhum Electron é empacotado.
+
+### Integrações opcionais
+
+```bash
+# Wayland
+sudo pacman -S --needed wl-clipboard
+
+# X11
+sudo pacman -S --needed xclip
+
+# Janela em modo app (opcional)
+sudo pacman -S --needed chromium
+```
+
+A captura automática começa **desligada a cada inicialização**. Ative em Preferências ou na página Área de transferência. Sem essas ferramentas, guardar/copiar textos pela interface continua funcionando.
+
+## Comandos
+
+```bash
+./nexo open      # abre a janela e inicia o serviço se necessário
+./nexo start     # inicia o serviço em segundo plano e mostra a porta
+./nexo status    # estado, porta e pasta de dados
+./nexo url       # URL local com chave de sessão (não compartilhe)
+./nexo stop      # encerra o serviço; preserva os dados
+```
+
+## Desenvolver
 
 ```bash
 npm ci
-npm run dev
+npm run dev -- --preview   # UI 0.0.0.0:5173 + API loopback:8765, dados .nexo-dev-data
 ```
 
-Abra `http://localhost:5173`. O servidor escuta em `0.0.0.0` e aceita o host do preview da Arena.
-
-- **Assumir o turno:** investigação normal, com duas pistas opcionais por sistema.
-- **Modo apresentação:** percurso assistido para demonstrar o projeto em poucos minutos. O botão de assistência restaura o sistema atual; a decisão final continua sendo do jogador.
-- **Ligar áudio:** ativa a paisagem sonora original, sintetizada com Web Audio. O áudio nunca começa automaticamente.
-- **Ajuda e opções:** manual, som e movimento reduzido.
-
-Uma partida normal leva aproximadamente 10–15 minutos. Não há contagem regressiva, vidas, publicidade, login ou penalidade por tentar.
-
-## Os cinco sistemas
-
-| Sistema                 | Mecânica                                                                             | O que revela           |
-| ----------------------- | ------------------------------------------------------------------------------------ | ---------------------- |
-| Rede de escuta          | Sintonizar frequência e amplificação; acompanhar a coerência e a forma de onda       | A origem da voz        |
-| Barramento de energia   | Girar oito peças para fechar um circuito real, com propagação de energia peça a peça | O estado da tripulação |
-| Arquivo cifrado         | Três rotores de deslocamento com prévia de decodificação                             | Seu último registro    |
-| Autenticação biométrica | Observar um eco de seis pulsos e reproduzir a sequência                              | Por que você esqueceu  |
-| Alinhamento orbital     | Mirar no mapa celeste ou ajustar azimute e elevação                                  | Quem está esperando    |
-
-Os módulos são desbloqueados em sequência. Cada solução adiciona uma evidência ao diário. Depois dos cinco sistemas, o canal de resposta oferece três escolhas, com epílogos próprios. É possível voltar e explorar outros finais sem refazer os puzzles.
-
-## Acessibilidade e controles
-
-- Controles nativos, rótulos em português, foco visível e navegação por teclado.
-- Sliders aceitam setas, Home e End; botões de ajuste fino complementam a sintonia.
-- O eco biométrico pode ser acompanhado por som, destaque visual ou **Ler sequência**. Não é necessário ouvir nem memorizar para jogar.
-- Teclas **1–4** nos sensores biométricos; **M** abre o mapa; **J** abre o diário; **?** abre a ajuda; **Esc** fecha janelas.
-- Diálogos usam `<dialog>` nativo, contenção explícita de foco e retorno de foco ao fechar.
-- Preferência do sistema por movimento reduzido respeitada, com opção de ajuste manual.
-- Layout responsivo: mapa e diário viram janelas no celular, sem esconder as pistas.
-- Verificações automatizadas axe-core para WCAG 2.1 A/AA nas telas principais. Isso não substitui uma auditoria manual completa de acessibilidade.
-
-## Persistência e privacidade
-
-O progresso, os ajustes dos puzzles, as pistas e o tempo de turno são salvos em `localStorage`, sob `ultimo-sinal:mission:v1`. Recarregar a página retoma a missão diretamente. Os finais descobertos ficam em `ultimo-sinal:desfechos`; a preferência de movimento em `ultimo-sinal:motion`.
-
-- Saves são versionados e validados; dados corrompidos não impedem jogar.
-- Se o navegador bloquear o armazenamento, o jogo continua em memória e mostra um aviso.
-- O diário pode ser baixado como `.txt` antes de reiniciar ou depois de um final.
-- Nenhum progresso é enviado a servidores. Não há analytics, backend, API paga ou contas.
-- Fontes, cenário e código são servidos pelo próprio app; não há CDN em tempo de execução.
-- Não há service worker: a primeira abertura requer acesso ao servidor que hospeda os arquivos.
-
-## Verificação
-
-```bash
-npm test          # 28 testes unitários das regras, puzzles, progressão e saves
-npm run build     # checagem TypeScript + build de produção
-npm run test:e2e  # Playwright: fluxos completos, celular, teclado, áudio e axe-core
-npm run check     # todos os comandos acima
-```
-
-Os testes de navegador usam Chromium empacotado via npm (`@sparticuz/chromium`). As bibliotecas NSS/NSPR incluídas no pacote são extraídas para `/tmp`; não é preciso baixar navegador de uma CDN nem instalar pacotes do sistema. O servidor de desenvolvimento é iniciado automaticamente se ainda não estiver rodando.
-
-Se o npm instalado apresentar o erro de resolução de peers `Cannot read properties of null (reading 'edgesOut')`, use `npm ci --legacy-peer-deps` ou `npm install --legacy-peer-deps`. O lockfile está incluído. A suíte foi executada com Node 22 e Chromium 153.
-
-Capturas de revisão ficam em `artifacts/` e não são versionadas. Falhas e traces de testes ficam em `test-results/`, também fora do Git.
-
-## Produção
+Sem `--preview`, o Vite de desenvolvimento escuta apenas em `127.0.0.1`. A flag `--preview` é explicitamente para o sandbox hospedado da Arena; não a use para expor dados pessoais.
 
 ```bash
 npm run build
-npm run preview
+./nexo open
+npm run check    # formatação, backend, unidade, build e E2E
 ```
 
-Publique o conteúdo de `dist/` em qualquer hospedagem estática. O preview de produção usa a porta 4173. Não há variáveis de ambiente nem segredos para configurar.
+## Dados e privacidade
 
-## Estrutura
+- Banco: `~/.local/share/nexo/nexo.db` (ou `XDG_DATA_HOME/nexo/nexo.db`).
+- Permissões: pasta `0700`, banco `0600`; chaves de runtime em arquivo `0600`.
+- **Sem criptografia em repouso.** Permissões Unix não protegem contra processos do mesmo usuário ou acesso físico. Não use como gerenciador de senhas.
+- O filtro de segredos da captura automática é heurístico e pode falhar. Textos guardados manualmente não passam por esse filtro.
+- API local exige chave de inicialização, cookie HttpOnly/SameSite=Strict, checagem de Host/Origin e cabeçalho customizado nas mutações.
+- Não há endpoint de execução arbitrária. `sudo` aparece apenas como texto sugerido.
+- Fontes e ícones são empacotados localmente. Licenças em `public/licenses/`.
 
-```text
-src/
-  game.ts                 # dados narrativos, regras puras, progressão e validação de saves
-  audio.ts                # ambiência e efeitos originais via Web Audio
-  App.tsx                 # abertura, estação, preferências e epílogos
-  styles.css              # direção visual e layouts responsivos
-  components/
-    Puzzles.tsx           # cinco mecânicas e assistência da apresentação
-    Visuals.tsx           # mapa da estação, marca e osciloscópio em canvas
-    Journal.tsx           # pistas, evidências, escolhas e exportação do diário
-    Modal.tsx             # diálogos acessíveis
-public/assets/
-  orbital-earth.webp      # cenário orbital otimizado
-  orbital-earth.jpg       # imagem original gerada para o projeto
-tests/
-  game.test.ts
-  e2e/experience.spec.ts
-  e2e/accessibility.spec.ts
+## Backup e desinstalação
+
+Em Preferências, exporte JSON. Uma nota também pode ser exportada em Markdown.
+
+```bash
+./packaging/uninstall.sh
 ```
 
-## Créditos e escopo
+Remove app, atalho e ícone; **preserva o banco**. Para apagar dados, faça backup e remova manualmente `nexo.db` e seus arquivos WAL/SHM na pasta de dados.
 
-React, TypeScript, Vite, Lucide e fontes locais Space Grotesk, Manrope e IBM Plex Mono. As fontes são distribuídas sob SIL Open Font License; suas licenças estão em `public/licenses/`.
+## Validação honesta
 
-O cenário foi criado com IA para este projeto. Interface, narrativa, trilho sonoro procedural e efeitos foram implementados para a experiência. A estação, a missão e a telemetria são ficcionais.
-
-**Não incluído:** multiplayer, contas, sincronização entre dispositivos, narração falada ou integração com serviços externos. O jogo funciona inteiramente no navegador e não precisa desses serviços.
-
----
-
-**Fim da transmissão. Não da história.**
+O sandbox de desenvolvimento é **Debian 12**, não Arch. Aqui foram exercitados backend Linux real, SQLite, launcher local, interface, fluxos E2E, acessibilidade e responsividade. `pacman`, `wl-paste` e `xclip` não estão disponíveis no sandbox; suas integrações têm testes unitários com mocks e degradação explícita, mas **não foram executadas em um Arch real nesta sessão**. O instalador foi exercitado com HOME/XDG isolados. Resultado: 19 testes backend + 3 unitários + 16 E2E aprovados; 5 páginas sem violações Axe e 5 larguras sem overflow. Consulte `docs/VALIDATION.md`.

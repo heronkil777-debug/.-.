@@ -5,5 +5,9 @@ coverage/
 playwright-report/
 test-results/
 artifacts/
+.nexo-dev-data/
+.nexo-test-data/
+__pycache__/
+*.pyc
 *.local
 .DS_Store

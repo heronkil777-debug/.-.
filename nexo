@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""NEXO user-space launcher. No root, no shell evaluation, no remote service."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import secrets
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+import webbrowser
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+SERVER = ROOT / "backend" / "server.py"
+
+
+def directory(env: str, fallback: Path) -> Path:
+    path = Path(os.environ.get(env) or fallback).expanduser()
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return path
+
+
+def data_dir() -> Path:
+    return Path(os.environ.get("NEXO_DATA_DIR") or Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "nexo").resolve()
+
+
+def runtime_dir() -> Path:
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime:
+        return directory("XDG_RUNTIME_DIR", Path(runtime)) / "nexo"
+    return directory("XDG_STATE_HOME", Path.home() / ".local" / "state" / "nexo")
+
+
+def runtime_file() -> Path:
+    base = runtime_dir()
+    base.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return base / f"instance-{hashlib.sha256(str(data_dir()).encode()).hexdigest()[:12]}.json"
+
+
+def read_runtime() -> dict | None:
+    try:
+        data = json.loads(runtime_file().read_text())
+        return data if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def write_private(path: Path, text: str) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(text)
+    path.chmod(0o600)
+
+
+def process_identity(pid: int) -> str | None:
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        return stat[stat.rfind(")") + 2:].split()[19]
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def ours(info: dict) -> bool:
+    try:
+        pid = int(info["pid"])
+        if pid <= 1 or process_identity(pid) != info.get("start_ticks"):
+            return False
+        args = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        return str(SERVER).encode() in args
+    except (OSError, KeyError, TypeError, ValueError):
+        return False
+
+
+def probe(info: dict) -> bool:
+    if not ours(info):
+        return False
+    try:
+        request = urllib.request.Request(f"http://127.0.0.1:{int(info['port'])}/api/session", headers={"X-NEXO-Key": str(info["key"])})
+        with urllib.request.urlopen(request, timeout=1.5) as response:
+            return json.load(response).get("app") == "NEXO"
+    except (OSError, ValueError, KeyError, urllib.error.URLError):
+        return False
+
+
+def free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def ensure_running() -> dict:
+    info = read_runtime()
+    if info and probe(info):
+        return info
+    if info and ours(info):
+        raise RuntimeError("O NEXO está iniciando, mas ainda não respondeu. Tente novamente em alguns segundos.")
+    if not (ROOT / "dist" / "index.html").is_file():
+        raise RuntimeError("Interface não compilada. Execute npm ci && npm run build ou ./packaging/install.sh.")
+    runtime = runtime_dir()
+    port = free_port()
+    info = {"pid": 0, "port": port, "key": secrets.token_urlsafe(32), "dataDir": str(data_dir()), "server": str(SERVER)}
+    env = {**os.environ, "NEXO_DATA_DIR": str(data_dir()), "NEXO_BOOTSTRAP_KEY": info["key"], "PYTHONUNBUFFERED": "1"}
+    log = runtime / "server.log"
+    fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    try:
+        child = subprocess.Popen([sys.executable, str(SERVER), "--host", "127.0.0.1", "--port", str(port)],
+                                 cwd=ROOT, env=env, stdin=subprocess.DEVNULL, stdout=fd, stderr=fd, start_new_session=True)
+    finally:
+        os.close(fd)
+    info["pid"] = child.pid
+    info["start_ticks"] = process_identity(child.pid)
+    write_private(runtime_file(), json.dumps(info))
+    for _ in range(60):
+        if child.poll() is not None:
+            raise RuntimeError(f"O serviço não iniciou. Consulte {log}.")
+        if probe(info):
+            return info
+        time.sleep(0.1)
+    child.terminate()
+    raise RuntimeError(f"Tempo esgotado ao iniciar o serviço. Consulte {log}.")
+
+
+def url_for(info: dict) -> str:
+    return f"http://127.0.0.1:{info['port']}/?nexo_key={info['key']}#overview"
+
+
+def open_window(info: dict) -> None:
+    url = url_for(info)
+    override = os.environ.get("NEXO_BROWSER")
+    browser = override or next((shutil.which(name) for name in ("chromium", "google-chrome-stable", "google-chrome", "firefox") if shutil.which(name)), None)
+    if browser:
+        name = Path(browser).name
+        args = [browser, f"--app={url}", "--class=NEXO", "--no-first-run", "--no-default-browser-check"] if "firefox" not in name else [browser, "--new-window", url]
+        subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    elif not webbrowser.open(url):
+        print(f"Abra no seu navegador: {url}")
+
+
+def stop() -> bool:
+    info = read_runtime()
+    if not info or not ours(info):
+        print("NEXO não está em execução.")
+        return False
+    pid = int(info["pid"])
+    os.kill(pid, signal.SIGTERM)
+    for _ in range(40):
+        if not ours(info):
+            break
+        time.sleep(0.1)
+    if ours(info):
+        raise RuntimeError("O serviço não encerrou a tempo. Nenhum sinal forçado foi enviado.")
+    try:
+        runtime_file().unlink()
+    except OSError:
+        pass
+    print("NEXO encerrado. Seus dados foram preservados.")
+    return True
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="NEXO — sua central pessoal para Linux")
+    parser.add_argument("command", nargs="?", default="open", choices=("open", "start", "status", "stop", "url"))
+    args = parser.parse_args()
+    try:
+        if args.command == "stop":
+            stop()
+            return 0
+        if args.command == "status":
+            info = read_runtime()
+            running = bool(info and probe(info))
+            print(json.dumps({"running": running, "port": info.get("port") if info else None, "dataDir": str(data_dir())}, ensure_ascii=False))
+            return 0 if running else 3
+        info = ensure_running()
+        if args.command == "open":
+            open_window(info)
+        elif args.command == "url":
+            print(url_for(info))
+        else:
+            print(f"NEXO pronto em http://127.0.0.1:{info['port']}")
+            print(f"Dados: {info['dataDir']}")
+            print("Use ./nexo open para abrir a janela; ./nexo stop para encerrar.")
+        return 0
+    except (RuntimeError, OSError, ValueError) as exc:
+        print(f"NEXO: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

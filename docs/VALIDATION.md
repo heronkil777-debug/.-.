@@ -1,33 +1,42 @@
-# Validação da entrega
+# Validação — NEXO
 
-Verificado em 14 de novembro de 2026, no ambiente Linux da Arena, com Node.js 22.22.3 e Chromium 153.
+Data: 2026-11-14. Ambiente de execução: Debian GNU/Linux 12, Python 3.11.2, Node 22.22.3, npm 10.9.8. **Não é Arch Linux.**
 
-## Suíte automatizada
+## Executado neste ambiente
 
-`npm run check` executa:
+- Build TypeScript estrito + Vite de produção.
+- Testes Python unittest: armazenamento, permissões, validação, deduplicação, retenção, filtro heurístico, clipboard indisponível e mocks Wayland, parsing de sistema, comandos pacman sem execução, HTTP, Host/Origin, sessão e limites.
+- Testes Vitest de formatação pt-BR.
+- Playwright/Chromium: painel, notas CRUD/exportação/persistência, clipboard guardar/copiar/fixar/limpar, pacman seguro, paleta/atalhos/foco, exportação JSON.
+- Axe WCAG 2 A/AA + 2.1 AA nas cinco páginas.
+- Overflow em 320, 390, 768, 1024 e 1440 px nas cinco páginas; navegação móvel.
+- Launcher real: start/status/url/stop, porta efêmera loopback, chave privada, bootstrap, cookie de sessão, criação de nota e leitura após reload.
+- Capturas de tela sem erros de runtime e sem requisições externas.
 
-1. Verificação de formatação.
-2. 28 testes unitários de regras, circuitos, cifra, biometria, progressão, três finais e validação de saves.
-3. TypeScript com checagem de variáveis não utilizadas e build de produção.
-4. 10 testes de navegador, incluindo auditorias axe-core WCAG 2.1 A/AA nas telas principais, estados restaurados, escolha final e confirmação.
+## Resultados
 
-**Resultado: 28 testes unitários e 10 testes de navegador aprovados.**
+- Backend: **19/19** testes Python aprovados.
+- Unidade frontend: **3/3** testes Vitest aprovados.
+- E2E: **16/16** testes Playwright aprovados (inclui 5 páginas Axe sem violações e 5 larguras sem overflow).
+- Build de produção: TypeScript estrito + Vite aprovados; JS principal ~287,8 KB (~88,5 KB gzip), CSS ~65,7 KB (~16,1 KB gzip).
+- Launcher local: inicialização, status, URL com chave, nota persistida após reload e encerramento aprovados.
+- Instalador: executado com `HOME`/XDG isolados em `artifacts/install-home`; install → start → status → stop → uninstall aprovado, com atalho `.desktop` e dados preservados.
+- Capturas finais: `artifacts/nexo-desktop.png`, `nexo-notes.png`, `nexo-pacman.png`, `nexo-mobile.png`; zero erros de runtime e zero requisições externas no fluxo capturado.
 
-Os fluxos de navegador resolvem os cinco puzzles pelos controles reais, testam respostas incorretas, reproduzem o eco biométrico, conferem a sequência textual, salvam e recarregam a missão, percorrem os três finais, exportam o diário, cancelam e confirmam o reinício e verificam o modo apresentação. Também cobrem armazenamento corrompido/indisponível, áudio opt-in, movimento reduzido, foco de diálogos e ausência de overflow no celular.
+## Não executado aqui (limitação honesta)
 
-## Revisão visual e responsiva
+- `pacman` real em Arch: não instalado no sandbox. Consulta e parsing foram testados com mocks; a interface informa indisponibilidade.
+- `wl-paste`/`wl-copy` e `xclip` reais: não instalados e sem display desktop. Detecção, argumentos e fallback foram testados; captura real precisa de conferência no seu Wayland/X11.
+- Instalador no filesystem real do usuário Arch: foi exercitado aqui com HOME/XDG isolados em Debian; a instalação no seu Arch deve ser executada pelo usuário.
+- Navegador em modo app visível no desktop do usuário: o sandbox usa Chromium headless.
 
-Capturas revisadas da abertura, estação, circuito, biometria, escolha final, epílogo e versão mobile. Além do teste de 390 px, uma varredura Chromium verificou abertura, cinco puzzles, estados restaurados, escolha e epílogo nas larguras:
+## Checklist no seu Arch
 
-`320, 375, 390, 560, 768, 800, 1024, 1280, 1440, 1920 px`
-
-**Overflow horizontal: 0 px em todas as telas e larguras verificadas.**
-
-Na revisão de rede, a aplicação não fez requisições externas nem registrou erros JavaScript. Fontes e cenário são locais; o áudio é sintetizado no navegador.
-
-## Limites da verificação
-
-- Testes automatizados de acessibilidade não equivalem a uma certificação WCAG nem substituem testes com usuários de leitores de tela.
-- A revisão de navegador foi feita em Chromium; não foi executada uma matriz real de Safari/Firefox/dispositivos físicos.
-- O jogo não tem backend e não foi publicado em um domínio externo. O preview da Arena serve a aplicação diretamente do ambiente de desenvolvimento.
-- O cenário é ficcional e gerado por IA. Não há serviço de voz, analytics ou API externa para configurar.
+1. `./packaging/install.sh`
+2. Abrir NEXO pelo menu.
+3. Conferir hostname, CPU, memória e disco.
+4. Criar uma nota, fechar o app, reabrir e confirmar persistência.
+5. Em Preferências, exportar JSON.
+6. Opcional: instalar wl-clipboard/xclip, ativar captura, copiar um texto comum e conferir histórico.
+7. Gerar `sudo pacman -Syu`, copiar e revisar no terminal. O app não executa nada.
+8. `nexo stop` e `./packaging/uninstall.sh` preservam dados.
