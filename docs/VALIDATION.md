@@ -23,11 +23,19 @@ Data: 2026-11-14. Ambiente de execução: Debian GNU/Linux 12, Python 3.11.2, No
 - Instalador: executado com `HOME`/XDG isolados em `artifacts/install-home`; install → start → status → stop → uninstall aprovado, com atalho `.desktop` e dados preservados.
 - Capturas finais: `artifacts/nexo-desktop.png`, `nexo-notes.png`, `nexo-pacman.png`, `nexo-mobile.png`; zero erros de runtime e zero requisições externas no fluxo capturado.
 
+## Relatado pelo usuário em Arch real (2026-11-14)
+
+- Máquina: Arch Linux x86_64, Lenovo IdeaPad S145-15API, kernel 6.18.62-1-lts, Wayland/mango.
+- Toolchain do usuário: Python 3.14.10, Node.js 26.13.0, npm 12.2.2, bash 5.3.20.
+- `git clone` público, `./packaging/install.sh`, `npm ci` e `vite build` concluídos com sucesso; atalho `.desktop` criado.
+- `desktop-file-validate` emitiu apenas hint cosmético sobre duas categorias principais (`Utility;System;`). Corrigido para `Categories=Utility;`.
+- Ainda não confirmado nesta conversa: janela do app visível, captura Wayland real e consulta pacman dentro da interface.
+
 ## Não executado aqui (limitação honesta)
 
 - `pacman` real em Arch: não instalado no sandbox. Consulta e parsing foram testados com mocks; a interface informa indisponibilidade.
 - `wl-paste`/`wl-copy` e `xclip` reais: não instalados e sem display desktop. Detecção, argumentos e fallback foram testados; captura real precisa de conferência no seu Wayland/X11.
-- Instalador no filesystem real do usuário Arch: foi exercitado aqui com HOME/XDG isolados em Debian; a instalação no seu Arch deve ser executada pelo usuário.
+- Instalador no filesystem real do usuário Arch: instalação/build foram confirmados pelo usuário (seção acima); o sandbox também exercitou o fluxo com HOME/XDG isolados em Debian.
 - Navegador em modo app visível no desktop do usuário: o sandbox usa Chromium headless.
 
 ## Checklist no seu Arch
