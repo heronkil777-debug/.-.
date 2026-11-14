@@ -15,17 +15,28 @@
 
 ## Instalar no Arch
 
-Requisitos de build: **Python 3.10+, Node.js 22+, npm**. Em um Arch atualizado:
+Requisitos de build: **Git, Python 3.10+, Node.js 22+, npm**.
+
+Os comandos abaixo podem ser copiados **de qualquer pasta**. Eles baixam o projeto para `~/nexo`, entram na pasta correta e só então executam o instalador:
 
 ```bash
-sudo pacman -S --needed python nodejs npm
-```
-
-Dentro da pasta deste projeto:
-
-```bash
+sudo pacman -S --needed git python nodejs npm
+git clone --branch arena/e098a341-repo https://github.com/heronkil777-debug/.-..git "$HOME/nexo"
+cd "$HOME/nexo"
 ./packaging/install.sh
+"$HOME/.local/bin/nexo" open
 ```
+
+O repositório é público; esse clone por HTTPS não pede token. Se você já clonou o projeto antes, atualize e reinstale a partir da pasta existente:
+
+```bash
+cd "$HOME/nexo"
+git pull --ff-only origin arena/e098a341-repo
+./packaging/install.sh
+"$HOME/.local/bin/nexo" open
+```
+
+> **`./packaging/install.sh: No such file or directory`** significa que o terminal ainda está fora da pasta do projeto (por exemplo, em `~`). Rode o `git clone` e o `cd` acima primeiro. As mensagens `is up to date -- skipping` do pacman são normais: as dependências já estavam instaladas.
 
 O instalador:
 
