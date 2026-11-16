@@ -1,0 +1,14 @@
+{
+  "appId": "br.dev.stop.jogo",
+  "appName": "STOP!",
+  "webDir": "www",
+  "backgroundColor": "#15603f",
+  "android": {
+    "backgroundColor": "#15603f",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

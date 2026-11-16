@@ -1,0 +1,15 @@
+node_modules/
+android/
+ios/
+.gradle/
+build/
+dist/
+*.apk
+*.aab
+*.keystore
+*.iml
+.idea/
+.DS_Store
+pkg/
+src/
+*.tar.gz

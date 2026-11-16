@@ -1,0 +1,33 @@
+# Maintainer: Heron <heronkil777@users.noreply.github.com>
+# Instalação local:
+#   cd arch && makepkg -si
+# (o pacote usa o código deste repositório, sem baixar nada da internet)
+pkgname=stop-jogo
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="STOP! — jogo de palavras (Adedonha) offline com dicionário e dicas"
+arch=('any')
+url="https://github.com/heronkil777-debug/.-."
+license=('MIT')
+depends=('python' 'xdg-utils')
+options=('!strip')
+install=stop-jogo.install
+source=()
+sha256sums=()
+
+package() {
+  local origem="$startdir/../www"
+
+  install -dm755 "$pkgdir/usr/share/stop-jogo"
+  cp -r "$origem/." "$pkgdir/usr/share/stop-jogo/"
+
+  install -Dm755 "$startdir/stop-jogo" "$pkgdir/usr/bin/stop-jogo"
+
+  install -Dm644 "$startdir/stop-jogo.desktop" "$pkgdir/usr/share/applications/stop-jogo.desktop"
+  install -Dm644 "$origem/assets/icone.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/stop-jogo.svg"
+  install -Dm644 "$origem/assets/icone-512.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/stop-jogo.png"
+  install -Dm644 "$origem/assets/icone-192.png" "$pkgdir/usr/share/icons/hicolor/192x192/apps/stop-jogo.png"
+  install -Dm644 "$origem/assets/icone-256.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/stop-jogo.png" 2>/dev/null || true
+
+  install -Dm644 "$startdir/../LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

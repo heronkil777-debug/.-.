@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Abre o STOP! no navegador padrão, servindo os arquivos por HTTP local
+# (necessário para o app funcionar 100% offline com cache do service worker).
+set -euo pipefail
+
+PORTA="${STOP_JOGO_PORTA:-8791}"
+DIR="/usr/share/stop-jogo"
+
+if [[ "${1:-}" == "--parar" ]]; then
+  if [[ -f "/tmp/stop-jogo-$PORTA.pid" ]]; then
+    kill "$(cat "/tmp/stop-jogo-$PORTA.pid")" 2>/dev/null || true
+    rm -f "/tmp/stop-jogo-$PORTA.pid"
+    echo "STOP! encerrado."
+  else
+    echo "Nada rodando na porta $PORTA."
+  fi
+  exit 0
+fi
+
+# já está no ar?
+if ! curl -s -o /dev/null "http://127.0.0.1:$PORTA/"; then
+  ( cd "$DIR" && nohup python3 -m http.server "$PORTA" --bind 127.0.0.1 >/dev/null 2>&1 & echo $! > "/tmp/stop-jogo-$PORTA.pid" )
+  sleep 0.4
+fi
+
+URL="http://127.0.0.1:$PORTA/"
+
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$URL" >/dev/null 2>&1 || echo "Abra no navegador: $URL"
+else
+  echo "Abra no navegador: $URL"
+fi
