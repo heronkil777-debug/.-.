@@ -15,8 +15,16 @@ cd android && ./gradlew assembleDebug
 APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
 Instale no celular com `adb install -r app-debug.apk` ou abrindo o arquivo no aparelho.
 
-Requisitos: Node 20+, JDK 21 e Android SDK (build-tools 35). O workflow
-`.github/workflows/android.yml` já faz isso tudo no GitHub, sem instalar nada localmente.
+Requisitos: Node 20+, JDK 21 e Android SDK (build-tools 35).
+
+Sem instalar nada localmente? Ative o workflow e compile no GitHub:
+
+```bash
+mkdir -p .github/workflows && cp docs/workflows/*.yml .github/workflows/
+git add .github && git commit -m "ci: APK" && git push
+```
+
+Ele roda em **Actions → “APK Android” → Run workflow** e deixa o APK no artefato `stop-jogo-apk`.
 
 ## Build de release assinado
 

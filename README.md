@@ -54,7 +54,18 @@ Para desinstalar: `sudo pacman -R stop-jogo`.
 ## APK Android
 
 O APK é gerado **na nuvem pelo GitHub Actions** (o projeto usa [Capacitor](https://capacitorjs.com/),
-que empacota o mesmo jogo dentro de um app Android de verdade):
+que empacota o mesmo jogo dentro de um app Android de verdade).
+
+Ative o workflow uma única vez (os arquivos ficam em `docs/workflows/` porque o bot que criou
+este repositório não tem permissão de commitar em `.github/workflows`):
+
+```bash
+mkdir -p .github/workflows
+cp docs/workflows/*.yml .github/workflows/
+git add .github && git commit -m "ci: APK Android + deploy da PWA" && git push
+```
+
+Depois:
 
 1. **Actions → “APK Android” → Run workflow**
 2. Ao terminar, baixe o artefato **`stop-jogo-apk`**
@@ -127,6 +138,14 @@ Duas formas:
 
 O passo a passo completo está em [`docs/COMO-ADICIONAR-PALAVRAS.md`](docs/COMO-ADICIONAR-PALAVRAS.md).
 
+## Publicar de graça
+
+- **Site/PWA:** ative `docs/workflows/pages.yml` (mesmo comando acima) e em
+  *Settings → Pages* escolha **GitHub Actions**. O jogo fica em
+  `https://SEU-USUARIO.github.io/SEU-REPO/`, instalável no celular e offline.
+- **APK:** workflow `docs/workflows/android.yml` → artefato `stop-jogo-apk`.
+- **Arch:** `cd arch && makepkg -si`.
+
 ## Estrutura
 
 ```
@@ -141,7 +160,7 @@ www/                  o jogo (é isso que vira site, PWA e APK)
 └── assets/           fontes Baloo 2/Nunito + ícones
 arch/                 PKGBUILD, launcher e .desktop (Arch Linux)
 scripts/              testes e gerador de ícones
-.github/workflows/    APK (Android) e deploy da PWA (Pages)
+docs/workflows/       modelos de CI: APK (Android) e deploy da PWA (Pages)
 ```
 
 ## Testes
