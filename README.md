@@ -24,47 +24,64 @@ sem login, sem anúncio, sem servidor.
 Tem cara de jogo de tabuleiro: feltro verde, papel creme, botões que afundam, roleta de letras,
 som, vibração e confete no resultado.
 
-## Instalar no Arch Linux (1 comando, sem root)
+## Instalar no Arch Linux (sem root)
+
+**Opção 1 — sem git** (baixa o zip do repositório, extrai e instala):
 
 ```bash
-curl -fsSL https://github.com/heronkil777-debug/.-./releases/latest/download/stop-jogo-1.0.0.tar.gz \
-  -o /tmp/stop.tgz && tar xzf /tmp/stop.tgz -C /tmp && /tmp/stop-jogo-1.0.0/arch/install.sh
+mkdir -p ~/stop-jogo && \
+  curl -fsSL https://codeload.github.com/heronkil777-debug/.-./tar.gz/refs/heads/main \
+  | tar xz -C ~/stop-jogo --strip-components=1 && \
+  ~/stop-jogo/arch/install.sh
 ```
 
-Isso copia o jogo para `~/.local/share/stop-jogo`, cria o comando **`stop-jogo`**,
-o ícone e a entrada **STOP!** no menu de aplicativos. Não usa `sudo`, não mexe em nada do sistema.
+**Opção 2 — com git:**
 
 ```bash
-stop-jogo              # abre o jogo (janela do app, se tiver chromium/brave; senão no navegador)
-stop-jogo --parar      # encerra o servidor local (porta 8791)
-stop-jogo --url        # só mostra o endereço
-./arch/install.sh --desinstalar   # remove tudo
-```
-
-Precisa apenas de `python` (que já vem no Arch) para servir os arquivos em `127.0.0.1`.
-Detalhes: o launcher reaproveita o servidor se já estiver no ar, aceita `STOP_JOGO_PORTA`
-e `STOP_JOGO_DIR`, e roda do próprio repositório se você chamar `./arch/stop-jogo` direto.
-
-### Alternativas de instalação
-
-```bash
-# direto do git (gera a pasta stop-jogo)
 git clone https://github.com/heronkil777-debug/.-. stop-jogo
-cd stop-jogo && ./arch/install.sh
-
-# gerenciado pelo pacman (precisa de base-devel)
-cd stop-jogo/arch && makepkg -si     # depois: sudo pacman -R stop-jogo
+cd stop-jogo
+./arch/install.sh
 ```
+
+O instalador copia o jogo para `~/.local/share/stop-jogo`, cria o comando **`stop-jogo`**,
+o ícone e a entrada **STOP!** no menu de aplicativos. Não usa `sudo` e não mexe em nada do sistema
+(o único requisito é `python`, que já vem no Arch).
+
+```bash
+stop-jogo              # abre o jogo (janela de app se tiver chromium/brave/firefox)
+stop-jogo --parar      # encerra o servidor local (porta 8791)
+stop-jogo --url        # só imprime o endereço
+~/stop-jogo/arch/install.sh --desinstalar   # remove tudo
+```
+
+**Opção 3 — pacote gerenciado pelo pacman** (precisa de `base-devel`):
+
+```bash
+cd stop-jogo/arch && makepkg -si
+# instala em /usr/share/stop-jogo e depois: sudo pacman -R stop-jogo
+```
+
+<details>
+<summary><b>Problemas comuns</b></summary>
+
+| Erro | Causa / solução |
+| --- | --- |
+| `cd: arch: No such file or directory` | Você está fora da pasta do projeto. Rode o **clone/extração** primeiro (opções 1 ou 2) e só depois `./arch/install.sh`. |
+| `stop-jogo: command not found` | `~/.local/bin` não está no `PATH`. Adicione `export PATH="$HOME/.local/bin:$PATH"` no `~/.bashrc` — ou abra pelo menu de aplicativos. |
+| Porta ocupada | `STOP_JOGO_PORTA=8792 stop-jogo` |
+| Abriu sem som | Clique em qualquer botão primeiro (navegadores só liberam áudio após interação). |
+
+</details>
 
 ### Só abrir, sem instalar
 
 ```bash
-xdg-open www/index.html     # funciona offline, direto do repositório
-npm start                   # ou servir em http://localhost:8080 (ativa o cache offline/PWA)
+xdg-open www/index.html     # funciona offline, direto da pasta do projeto
+npm start                   # serve em http://localhost:8080 (ativa cache offline/PWA)
 ```
 
 No celular: abra o endereço no navegador → menu → **"Adicionar à tela inicial"**.
-Fica com ícone próprio, tela cheia e funciona offline.
+Fica com ícone próprio, em tela cheia e offline.
 
 ## Opcional: APK Android
 
