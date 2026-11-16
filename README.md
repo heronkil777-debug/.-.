@@ -24,34 +24,49 @@ sem login, sem anúncio, sem servidor.
 Tem cara de jogo de tabuleiro: feltro verde, papel creme, botões que afundam, roleta de letras,
 som, vibração e confete no resultado.
 
-## Jogar agora
+## Instalar no Arch Linux (1 comando, sem root)
 
 ```bash
-# 1) só abrir (funciona offline, sem instalar nada)
-xdg-open www/index.html
+curl -fsSL https://github.com/heronkil777-debug/.-./releases/latest/download/stop-jogo-1.0.0.tar.gz \
+  -o /tmp/stop.tgz && tar xzf /tmp/stop.tgz -C /tmp && /tmp/stop-jogo-1.0.0/arch/install.sh
+```
 
-# 2) ou com servidor local (recomendado: ativa o modo offline/PWA)
-npm start          # http://localhost:8080
+Isso copia o jogo para `~/.local/share/stop-jogo`, cria o comando **`stop-jogo`**,
+o ícone e a entrada **STOP!** no menu de aplicativos. Não usa `sudo`, não mexe em nada do sistema.
+
+```bash
+stop-jogo              # abre o jogo (janela do app, se tiver chromium/brave; senão no navegador)
+stop-jogo --parar      # encerra o servidor local (porta 8791)
+stop-jogo --url        # só mostra o endereço
+./arch/install.sh --desinstalar   # remove tudo
+```
+
+Precisa apenas de `python` (que já vem no Arch) para servir os arquivos em `127.0.0.1`.
+Detalhes: o launcher reaproveita o servidor se já estiver no ar, aceita `STOP_JOGO_PORTA`
+e `STOP_JOGO_DIR`, e roda do próprio repositório se você chamar `./arch/stop-jogo` direto.
+
+### Alternativas de instalação
+
+```bash
+# direto do git (gera a pasta stop-jogo)
+git clone https://github.com/heronkil777-debug/.-. stop-jogo
+cd stop-jogo && ./arch/install.sh
+
+# gerenciado pelo pacman (precisa de base-devel)
+cd stop-jogo/arch && makepkg -si     # depois: sudo pacman -R stop-jogo
+```
+
+### Só abrir, sem instalar
+
+```bash
+xdg-open www/index.html     # funciona offline, direto do repositório
+npm start                   # ou servir em http://localhost:8080 (ativa o cache offline/PWA)
 ```
 
 No celular: abra o endereço no navegador → menu → **"Adicionar à tela inicial"**.
 Fica com ícone próprio, tela cheia e funciona offline.
 
-## Arch Linux
-
-Pacote nativo (arquivos em `/usr/share/stop-jogo`, comando `stop-jogo` e entrada no menu):
-
-```bash
-cd arch
-makepkg -si          # instala
-stop-jogo            # abre no navegador padrão
-stop-jogo --parar    # encerra o servidor local
-```
-
-Depende de `python` (serve os arquivos em `127.0.0.1`) e `xdg-utils` (abre o navegador).
-Para desinstalar: `sudo pacman -R stop-jogo`.
-
-## APK Android
+## Opcional: APK Android
 
 O APK é gerado **na nuvem pelo GitHub Actions** (o projeto usa [Capacitor](https://capacitorjs.com/),
 que empacota o mesmo jogo dentro de um app Android de verdade).
@@ -144,7 +159,7 @@ O passo a passo completo está em [`docs/COMO-ADICIONAR-PALAVRAS.md`](docs/COMO-
   *Settings → Pages* escolha **GitHub Actions**. O jogo fica em
   `https://SEU-USUARIO.github.io/SEU-REPO/`, instalável no celular e offline.
 - **APK:** workflow `docs/workflows/android.yml` → artefato `stop-jogo-apk`.
-- **Arch:** `cd arch && makepkg -si`.
+- **Arch:** já é o caminho principal — veja o topo deste README.
 
 ## Estrutura
 
@@ -158,7 +173,7 @@ www/                  o jogo (é isso que vira site, PWA e APK)
 ├── sw.js            service worker (offline)
 ├── manifest.webmanifest
 └── assets/           fontes Baloo 2/Nunito + ícones
-arch/                 PKGBUILD, launcher e .desktop (Arch Linux)
+arch/                 install.sh (sem root), launcher, .desktop e PKGBUILD
 scripts/              testes e gerador de ícones
 docs/workflows/       modelos de CI: APK (Android) e deploy da PWA (Pages)
 ```
