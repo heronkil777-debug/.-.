@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=STOP!
+GenericName=Jogo de palavras
+Comment=Adedonha digital: sorteie uma letra e preencha as categorias
+Exec=stop-jogo
+Icon=stop-jogo
+Terminal=false
+Categories=Game;Education;
+Keywords=stop;adedonha;adedanha;palavras;jogo;
+StartupNotify=true

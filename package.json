@@ -1,0 +1,26 @@
+{
+  "name": "stop-jogo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "STOP! — jogo de palavras (Adedonha) offline, em HTML/CSS/JS puro. Site, PWA e app Android via Capacitor.",
+  "homepage": "https://github.com/heronkil777-debug/.-.",
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 -m http.server 8080 --directory www",
+    "serve": "python3 -m http.server 8080 --directory www",
+    "test": "node scripts/test-ui.cjs",
+    "test:dados": "node scripts/validate-data.js",
+    "icones": "python3 scripts/gerar-icones.py",
+    "android:add": "npx cap add android",
+    "android:sync": "npx cap sync android",
+    "android:build": "cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}

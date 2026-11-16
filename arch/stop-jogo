@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# STOP! — abre o jogo no navegador servindo os arquivos por HTTP local.
+#
+# Uso:
+#   stop-jogo            abre o jogo (reaproveita o servidor se já estiver no ar)
+#   stop-jogo --parar    encerra o servidor local
+#   stop-jogo --url      só imprime o endereço
+#
+# Variáveis: STOP_JOGO_DIR (onde estão os arquivos), STOP_JOGO_PORTA (padrão 8791),
+#            STOP_JOGO_NAVEGADOR (força um navegador específico)
+set -euo pipefail
+
+PORTA="${STOP_JOGO_PORTA:-8791}"
+PID_FILE="/tmp/stop-jogo-${PORTA}.pid"
+
+# onde o jogo está instalado
+if [[ -n "${STOP_JOGO_DIR:-}" ]]; then
+  DIR="$STOP_JOGO_DIR"
+elif [[ -f /usr/share/stop-jogo/index.html ]]; then
+  DIR="/usr/share/stop-jogo"
+elif [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/stop-jogo/index.html" ]]; then
+  DIR="${XDG_DATA_HOME:-$HOME/.local/share}/stop-jogo"
+elif [[ -f "$(dirname "$(readlink -f "$0")")/../www/index.html" ]]; then
+  DIR="$(cd "$(dirname "$(readlink -f "$0")")/../www" && pwd)"   # rodando do repositório
+else
+  echo "STOP!: não encontrei os arquivos do jogo (defina STOP_JOGO_DIR)." >&2
+  exit 1
+fi
+
+URL="http://127.0.0.1:${PORTA}/"
+
+parar_servidor() {
+  if [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+    kill "$(cat "$PID_FILE")" 2>/dev/null || true
+    rm -f "$PID_FILE"
+    return 0
+  fi
+  rm -f "$PID_FILE"
+  return 1
+}
+
+case "${1:-}" in
+  --parar|--stop)
+    if parar_servidor; then echo "STOP! encerrado."; else echo "Nada rodando na porta $PORTA."; fi
+    exit 0 ;;
+  --url)
+    echo "$URL"; exit 0 ;;
+  --ajuda|--help|-h)
+    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"; exit 0 ;;
+esac
+
+# já tem servidor no ar?
+if ! curl -fs -o /dev/null --max-time 2 "$URL"; then
+  ( cd "$DIR" && nohup python3 -m http.server "$PORTA" --bind 127.0.0.1 >/tmp/stop-jogo-$PORTA.log 2>&1 & echo $! > "$PID_FILE" )
+  for _ in $(seq 1 25); do
+    curl -fs -o /dev/null --max-time 1 "$URL" && break
+    sleep 0.1
+  done
+fi
+
+abrir() {
+  local nav="$1"
+  shift
+  "$nav" "$@" "$URL" >/dev/null 2>&1 &
+}
+
+# navegadores com modo "janela de app" (fica com cara de aplicativo nativo)
+CANDIDATOS=("${STOP_JOGO_NAVEGADOR:-}" chromium chromium-browser google-chrome-stable google-chrome brave brave-browser microsoft-edge vivaldi opera)
+for nav in "${CANDIDATOS[@]}"; do
+  [[ -z "$nav" ]] && continue
+  if command -v "$nav" >/dev/null 2>&1; then
+    abrir "$nav" --app="$URL" --window-size=1024,760 --class=stop-jogo
+    exit 0
+  fi
+done
+
+# Firefox: janela nova (sem chrome de navegador)
+if command -v firefox >/dev/null 2>&1; then
+  abrir firefox --new-window
+  exit 0
+fi
+
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$URL" >/dev/null 2>&1 &
+  exit 0
+fi
+
+echo "Abra no navegador: $URL"
+echo "(servidor local rodando; pare com: stop-jogo --parar)"

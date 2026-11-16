@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="STOP!">
+  <defs>
+    <linearGradient id="feltro" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f9d6f"/>
+      <stop offset="1" stop-color="#0d4830"/>
+    </linearGradient>
+    <pattern id="trama" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="10" height="10" fill="none"/>
+      <rect width="2" height="10" fill="#ffffff" opacity="0.045"/>
+    </pattern>
+    <clipPath id="recorte">
+      <rect x="0" y="0" width="512" height="512" rx="112" ry="112"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#recorte)">
+    <rect width="512" height="512" fill="url(#feltro)"/>
+    <rect width="512" height="512" fill="url(#trama)"/>
+    <circle cx="256" cy="256" r="176" fill="#f9f2df" stroke="#241f18" stroke-width="10"/>
+    <circle cx="256" cy="256" r="158" fill="none" stroke="#d9cba9" stroke-width="5" stroke-dasharray="12 14"/>
+    <text x="196" y="356" font-family="'Baloo 2', 'Trebuchet MS', sans-serif" font-weight="800" font-size="248" fill="#b8234a" text-anchor="middle">S</text>
+    <text x="356" y="300" font-family="'Baloo 2', 'Trebuchet MS', sans-serif" font-weight="800" font-size="130" fill="#dfa41f" text-anchor="middle" transform="rotate(9 356 300)">!</text>
+  </g>
+</svg>

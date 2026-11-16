@@ -1,0 +1,19 @@
+{
+  "name": "STOP! — Jogo de palavras",
+  "short_name": "STOP!",
+  "description": "Sorteie uma letra, preencha as categorias e desafie os amigos. Dicionário com milhares de palavras, dicas e modo offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#15603f",
+  "theme_color": "#15603f",
+  "lang": "pt-BR",
+  "categories": ["games", "education", "entertainment"],
+  "icons": [
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-mask-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icone.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
